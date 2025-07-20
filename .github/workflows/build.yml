@@ -120,13 +120,13 @@ jobs:
       - name: 🧼 Rename jar
         run: |
           mkdir -p out
-          mv target/LiveUpdater-1.0.jar out/plugin-${{ matrix.label }}.jar
+          mv target/LiveUpdater-1.0.jar out/LiveUpdater-${{ matrix.label }}.jar
 
       - name: 📤 Upload plugin artifact
         uses: actions/upload-artifact@v4
         with:
-          name: plugin-${{ matrix.label }}
-          path: out/plugin-${{ matrix.label }}.jar
+          name: LiveUpdater-${{ matrix.label }}
+          path: out/LiveUpdater-${{ matrix.label }}.jar
 
   release:
     name: 🚀 Release Plugin Artifacts Only
