@@ -80,9 +80,13 @@ jobs:
           name: binary-${{ matrix.os }}
           path: .
       
-      - name: 🔧 Make server binary executable (if needed)
-        if: runner.os != 'Windows'
-        run: chmod +x ./server-${{ matrix.label }}
+      - name: 🔧 Make server binary executable on Linux
+        if: runner.os == 'Linux'
+        run: chmod +x ./binary-ubuntu-latest
+      
+      - name: 🔧 Make server binary executable on macOS
+        if: runner.os == 'macOS'
+        run: chmod +x ./binary-mac-latest
       
       - name: 🚀 Build plugin with server binary
         run: ./server-${{ matrix.label }} build
@@ -93,8 +97,26 @@ jobs:
           distribution: temurin
           java-version: 22
 
+      - name: 🏷️ Move binary on Windows
+        if: runner.os == 'Windows'
+        run: |
+          mkdir dist-renamed
+          Move-Item -Path dist\server.exe -Destination dist-renamed\server-windows.exe
+
+      - name: 🏷️ Move binary on macOS
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p dist-renamed
+          mv dist/server dist-renamed/server-macos
+
+      - name: 🏷️ Move binary on Linux
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist-renamed
+          mv binary-ubuntu-latest src/main/resources/bin/binary-ubuntu-latest
+
       - name: 🚀 Build plugin with server binary
-        run: ./server-${{ matrix.label }} build
+        run: mvn clean package
 
       - name: 🧼 Rename jar
         run: |
