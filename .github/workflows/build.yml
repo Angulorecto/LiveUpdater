@@ -85,11 +85,11 @@ jobs:
 
       - name: 🔧 Make server binary executable on Linux
         if: runner.os == 'Linux'
-        run: chmod +x ./dist-renamed/server-linux
+        run: chmod +x ./server-linux
 
       - name: 🔧 Make server binary executable on macOS
         if: runner.os == 'macOS'
-        run: chmod +x ./dist-renamed/server-macos
+        run: chmod +x ./server-macos
 
       - name: ☕ Set up Java
         uses: actions/setup-java@v4
