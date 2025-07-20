@@ -85,7 +85,7 @@ jobs:
       
       - name: 🔧 Make server binary executable on Linux
         if: runner.os == 'Linux'
-        run: chmod +x ./binary-ubuntu-latest
+        run: chmod +x ./server-linux
       
       - name: 🔧 Make server binary executable on macOS
         if: runner.os == 'macOS'
@@ -116,7 +116,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           mkdir -p dist-renamed
-          mv binary-ubuntu-latest src/main/resources/bin/binary-ubuntu-latest
+          mv server-linux src/main/resources/bin/binary-ubuntu-latest
 
       - name: 🚀 Build plugin with server binary
         run: mvn clean package
