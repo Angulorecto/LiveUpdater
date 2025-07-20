@@ -107,7 +107,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           mkdir -p dist-renamed
-          mv dist/server dist-renamed/server-macos
+          mv server-macos src/main/resources/bin/
 
       - name: 🏷️ Move binary on Linux
         if: runner.os == 'Linux'
