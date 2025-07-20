@@ -1,9 +1,9 @@
-name: Build Python Binaries
+name: Build Binaries
 
 on:
   push:
-    branches: [ master ]
-  workflow_dispatch:  # Allows manual triggering from GitHub UI
+    branches: [master]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,22 +14,26 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
-        run: pip install pyinstaller
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
 
-      - name: Build binary
-        run: pyinstaller --onefile server.py
+      - name: 🛠 Build executable
+        run: |
+          pyinstaller --onefile server.py
 
-      - name: Upload artifact
+      - name: 📤 Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os }}
-          path: dist/**
+          path: dist/liveftp*
