@@ -1,4 +1,4 @@
-name: Build Binaries
+name: Build Binaries and Create Release
 
 on:
   push:
@@ -22,18 +22,68 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: 📦 Install dependencies
+      - name: 📦 Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          pip install -r requirements.txt pyinstaller
 
-      - name: 🛠 Build executable
+      - name: 🛠 Build Python binary
+        run: pyinstaller --onefile server.py
+
+      - name: 🗃 Rename binary for OS
         run: |
-          pyinstaller --onefile server.py
+          BINARY_NAME="server"
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            mv dist/server.exe server-windows.exe
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            mv dist/server server-macos
+          else
+            mv dist/server server-linux
+          fi
 
-      - name: 📤 Upload binary
+      - name: 📤 Upload OS binary
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os }}
-          path: dist/server*
+          path: |
+            server-windows.exe
+            server-linux
+            server-macos
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🗃 Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: 🧪 Optional: Build JAR plugin
+        run: |
+          # Only include this if you build a plugin in the same repo
+          # Replace this with your actual JAR build command
+          echo "Pretend we're building the plugin here"
+          mkdir -p plugin
+          echo "dummy jar content" > plugin/LiveUpdaterPlugin.jar
+
+      - name: 📦 Set up release version
+        id: version
+        run: |
+          VERSION="v$(date +'%Y.%m.%d-%H%M')"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          files: |
+            artifacts/**/*
+            plugin/LiveUpdaterPlugin.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
