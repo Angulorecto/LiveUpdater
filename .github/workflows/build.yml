@@ -32,11 +32,22 @@ jobs:
         run: |
           pyinstaller --onefile server.py
 
+      - name: 🏷️ Rename binary
+        run: |
+          mkdir -p dist-renamed
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            mv dist/server.exe dist-renamed/server-windows.exe
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            mv dist/server dist-renamed/server-macos
+          else
+            mv dist/server dist-renamed/server-linux
+          fi
+
       - name: 📤 Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os }}
-          path: dist/server*
+          path: dist-renamed/*
 
   build-plugins:
     name: Build Plugin
@@ -59,12 +70,15 @@ jobs:
       - name: ⬇️ Download binary from artifacts
         uses: actions/download-artifact@v4
         with:
-          name: server-${{ matrix.label }}
+          name: binary-${{ matrix.os }}
           path: .
-
+      
       - name: 🔧 Make server binary executable (if needed)
         if: runner.os != 'Windows'
         run: chmod +x ./server-${{ matrix.label }}
+      
+      - name: 🚀 Build plugin with server binary
+        run: ./server-${{ matrix.label }} build
 
       - name: ☕ Set up Java
         uses: actions/setup-java@v4
