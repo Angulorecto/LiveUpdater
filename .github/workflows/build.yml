@@ -36,7 +36,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           mkdir dist-renamed
-          Rename-Item dist\server.exe dist-renamed\server-windows.exe
+          Move-Item -Path dist\server.exe -Destination dist-renamed\server-windows.exe
 
       - name: 🏷️ Rename binary on macOS
         if: runner.os == 'macOS'
