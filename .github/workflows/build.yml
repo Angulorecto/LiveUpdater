@@ -113,7 +113,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           mkdir -p dist-renamed
-          mv server-linux src/main/resources/bin/binary-ubuntu-latest
+          mv server-linux src/main/resources/bin/
 
       - name: 🚀 Build plugin with server binary
         run: mvn clean package
