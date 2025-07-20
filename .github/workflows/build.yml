@@ -88,4 +88,4 @@ jobs:
             artifacts/binary-macos-latest/server*
             artifacts/plugin-jar/*.jar
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
