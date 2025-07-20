@@ -101,7 +101,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           mkdir dist-renamed
-          Move-Item -Path server.exe -Destination src/main/resources/bin/server.exe
+          Move-Item -Path server-windows.exe -Destination src/main/resources/bin/server.exe
 
       - name: 🏷️ Move binary on macOS
         if: runner.os == 'macOS'
