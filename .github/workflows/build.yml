@@ -39,28 +39,38 @@ jobs:
           path: dist/server*
 
   build-plugin:
-    name: Build Plugin JAR
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.plugin }} for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        plugin: [pluginA, pluginB, pluginC]
 
     steps:
-      - name: 📥 Checkout
+      - name: 🧾 Checkout Code
         uses: actions/checkout@v4
 
-      - name: ☕ Set up Java
+      - name: 🧰 Set up Java
         uses: actions/setup-java@v4
         with:
-          java-version: '22'
-          distribution: 'temurin'
+          distribution: temurin
+          java-version: 22
 
-      - name: 📦 Build with Maven
-        run: mvn clean package
+      - name: 💽 Install dependencies
+        run: mvn install -DskipTests
 
-      - name: 📤 Upload Plugin JAR
+      - name: 🔧 Build plugin
+        run: |
+          echo "Building ${{ matrix.plugin }} with OS binary"
+          chmod +x server-${{ matrix.os }}
+          ./server-${{ matrix.os }} build-${{ matrix.plugin }}
+
+      - name: 📦 Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: plugin-jar
-          path: target/*.jar
-
+          name: ${{ matrix.plugin }}-${{ matrix.os }}
+          path: |
+            target/${{ matrix.plugin }}.jar
   release:
     name: 🚀 Release Artifacts
     needs: [build-binaries, build-plugin]
@@ -86,6 +96,6 @@ jobs:
             artifacts/binary-ubuntu-latest/server*
             artifacts/binary-windows-latest/server*.exe
             artifacts/binary-macos-latest/server*
-            artifacts/plugin-jar/*.jar
+            artifacts/plugin-jar/!(*original-*)*.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
