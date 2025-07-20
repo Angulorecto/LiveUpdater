@@ -79,17 +79,17 @@ jobs:
         with:
           name: binary-${{ matrix.os }}
           path: .
-      
+
       - name: List downloaded files
-        run: ls
-      
+        run: ls -R
+
       - name: 🔧 Make server binary executable on Linux
         if: runner.os == 'Linux'
-        run: chmod +x ./server-linux
-      
+        run: chmod +x ./dist-renamed/server-linux
+
       - name: 🔧 Make server binary executable on macOS
         if: runner.os == 'macOS'
-        run: chmod +x ./server-macos
+        run: chmod +x ./dist-renamed/server-macos
 
       - name: ☕ Set up Java
         uses: actions/setup-java@v4
@@ -100,20 +100,20 @@ jobs:
       - name: 🏷️ Move binary on Windows
         if: runner.os == 'Windows'
         run: |
-          mkdir dist-renamed
-          Move-Item -Path server-windows.exe -Destination src/main/resources/bin/server.exe
+          mkdir -p src/main/resources/bin
+          Move-Item -Path dist-renamed\server-windows.exe -Destination src/main/resources/bin/server.exe
 
       - name: 🏷️ Move binary on macOS
         if: runner.os == 'macOS'
         run: |
-          mkdir -p dist-renamed
-          mv server-macos src/main/resources/bin/
+          mkdir -p src/main/resources/bin
+          mv dist-renamed/server-macos src/main/resources/bin/server
 
       - name: 🏷️ Move binary on Linux
         if: runner.os == 'Linux'
         run: |
-          mkdir -p dist-renamed
-          mv server-linux src/main/resources/bin/
+          mkdir -p src/main/resources/bin
+          mv dist-renamed/server-linux src/main/resources/bin/server
 
       - name: 🚀 Build plugin with server binary
         run: mvn clean package
@@ -130,17 +130,12 @@ jobs:
           path: out/plugin-${{ matrix.label }}.jar
 
   release:
-    name: 🚀 Release Artifacts
-    needs: [build-binaries, build-plugins]
+    name: 🚀 Release Plugin Artifacts Only
+    needs: [build-plugins]
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Download binaries
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: 📥 Download plugin JAR
+      - name: 📥 Download plugin JARs
         uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -151,9 +146,6 @@ jobs:
           tag_name: v${{ github.run_number }}
           name: Release v${{ github.run_number }}
           files: |
-            artifacts/binary-ubuntu-latest/server*
-            artifacts/binary-windows-latest/server*.exe
-            artifacts/binary-macos-latest/server*
-            artifacts/plugin-jar/!(*original-*)*.jar
+            artifacts/plugin-*/plugin-*.jar
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
