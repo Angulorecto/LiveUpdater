@@ -90,9 +90,6 @@ jobs:
       - name: 🔧 Make server binary executable on macOS
         if: runner.os == 'macOS'
         run: chmod +x ./binary-mac-latest
-      
-      - name: 🚀 Build plugin with server binary
-        run: ./server-${{ matrix.label }} build
 
       - name: ☕ Set up Java
         uses: actions/setup-java@v4
