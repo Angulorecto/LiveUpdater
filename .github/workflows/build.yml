@@ -101,19 +101,19 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           mkdir -p src/main/resources/bin
-          Move-Item -Path dist-renamed\server-windows.exe -Destination src/main/resources/bin/server.exe
+          Move-Item -Path server-windows.exe -Destination src/main/resources/bin/server.exe
 
       - name: 🏷️ Move binary on macOS
         if: runner.os == 'macOS'
         run: |
           mkdir -p src/main/resources/bin
-          mv dist-renamed/server-macos src/main/resources/bin/server
+          mv server-macos src/main/resources/bin/server
 
       - name: 🏷️ Move binary on Linux
         if: runner.os == 'Linux'
         run: |
           mkdir -p src/main/resources/bin
-          mv dist-renamed/server-linux src/main/resources/bin/server
+          mv server-linux src/main/resources/bin/server
 
       - name: 🚀 Build plugin with server binary
         run: mvn clean package
