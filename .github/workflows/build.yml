@@ -1,4 +1,4 @@
-name: Build Binaries and Plugin
+name: Build and Release
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-binaries:
-    name: Build binary on ${{ matrix.os }}
+  build:
+    name: Build on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -32,60 +32,45 @@ jobs:
         run: |
           pyinstaller --onefile server.py
 
-      - name: 📤 Upload binary
+      - name: ☕ Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '22'
+
+      - name: 🧱 Install Maven dependencies and build plugin
+        run: mvn clean package
+
+      - name: 📤 Upload built binary
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os }}
           path: dist/server*
 
-  build-plugin:
-    name: Build Plugin JAR
+  release:
+    name: Create GitHub Release
     runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: write
 
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: ☕ Set up Java
-        uses: actions/setup-java@v4
+      - name: ⬇️ Download all build artifacts
+        uses: actions/download-artifact@v4
         with:
-          java-version: '22'
-          distribution: 'temurin'
+          path: artifacts
 
-      - name: 📦 Build with Maven
+      - name: 🧱 Build plugin for release
         run: mvn clean package
 
-      - name: 📤 Upload Plugin JAR
-        uses: actions/upload-artifact@v4
-        with:
-          name: plugin-jar
-          path: target/*.jar
-
-  release:
-    name: 🚀 Release Artifacts
-    needs: [build-binaries, build-plugin]
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 📥 Download binaries
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: 📥 Download plugin JAR
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: 🚀 Create GitHub Release
-        uses: softprops/action-gh-release@v1
+      - name: 🚀 Create GitHub release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.run_number }}
           name: Release v${{ github.run_number }}
           files: |
-            artifacts/binary-ubuntu-latest/server*
-            artifacts/binary-windows-latest/server*.exe
-            artifacts/binary-macos-latest/server*
-            artifacts/plugin-jar/*.jar
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            artifacts/**/server*
+            target/*.jar
