@@ -80,6 +80,9 @@ jobs:
           name: binary-${{ matrix.os }}
           path: .
       
+      - name: List downloaded files
+        run: ls -lR
+      
       - name: 🔧 Make server binary executable on Linux
         if: runner.os == 'Linux'
         run: chmod +x ./binary-ubuntu-latest
