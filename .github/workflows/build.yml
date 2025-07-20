@@ -89,7 +89,7 @@ jobs:
       
       - name: 🔧 Make server binary executable on macOS
         if: runner.os == 'macOS'
-        run: chmod +x ./binary-mac-latest
+        run: chmod +x ./server-macos
 
       - name: ☕ Set up Java
         uses: actions/setup-java@v4
