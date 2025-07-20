@@ -11,7 +11,7 @@ import java.util.Locale;
 
 public final class LiveUpdater extends JavaPlugin {
 
-    private final String repo = "Angulorecto/LiveUpdaterBinary";
+    private final String repo = "Angulorecto/LiveUpdater";
     private final String apiUrl = "https://api.github.com/repos/" + repo + "/releases/latest";
 
     @Override
