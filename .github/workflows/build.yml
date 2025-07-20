@@ -35,7 +35,7 @@ jobs:
       - name: 🏷️ Rename binary
         run: |
           mkdir -p dist-renamed
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
+          if ([ "${{ runner.os }}" == "Windows" ]); then
             mv dist/server.exe dist-renamed/server-windows.exe
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
             mv dist/server dist-renamed/server-macos
