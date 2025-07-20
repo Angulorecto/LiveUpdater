@@ -77,9 +77,6 @@ jobs:
         with:
           path: artifacts
 
-      - name: 🔍 Debug token permissions
-        run: curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" https://api.github.com/repos/${{ github.repository }}
-
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
