@@ -38,25 +38,33 @@ jobs:
           name: binary-${{ matrix.os }}
           path: dist/server*
 
-  build-plugin:
-    name: Build plugin for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+  build-plugins:
+    name: Build Plugin
+    needs: build-binaries
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
             label: linux-ubuntu
-            binary: server-linux
           - os: windows-latest
             label: windows
-            binary: server.exe
           - os: macos-latest
             label: macos
-            binary: server-macos
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: 📦 Checkout
         uses: actions/checkout@v4
+
+      - name: ⬇️ Download binary from artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: server-${{ matrix.label }}
+          path: .
+
+      - name: 🔧 Make server binary executable (if needed)
+        if: runner.os != 'Windows'
+        run: chmod +x ./server-${{ matrix.label }}
 
       - name: ☕ Set up Java
         uses: actions/setup-java@v4
@@ -64,26 +72,23 @@ jobs:
           distribution: temurin
           java-version: 22
 
-      - name: 🔧 Make server binary executable (if needed)
-        if: runner.os != 'Windows'
-        run: chmod +x ${{ matrix.binary }}
-
-      - name: 🚀 Build plugin using server
+      - name: 🚀 Build plugin with server binary
         run: ./server-${{ matrix.label }} build
 
-      - name: 🧼 Rename final jar
+      - name: 🧼 Rename jar
         run: |
           mkdir -p out
           mv target/plugin.jar out/plugin-${{ matrix.label }}.jar
 
-      - name: 📤 Upload artifact
+      - name: 📤 Upload plugin artifact
         uses: actions/upload-artifact@v4
         with:
           name: plugin-${{ matrix.label }}
           path: out/plugin-${{ matrix.label }}.jar
+
   release:
     name: 🚀 Release Artifacts
-    needs: [build-binaries, build-plugin]
+    needs: [build-binaries, build-plugins]
     runs-on: ubuntu-latest
 
     steps:
