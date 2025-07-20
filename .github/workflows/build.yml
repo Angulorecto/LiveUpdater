@@ -81,7 +81,7 @@ jobs:
           path: .
       
       - name: List downloaded files
-        run: ls -lR
+        run: ls
       
       - name: 🔧 Make server binary executable on Linux
         if: runner.os == 'Linux'
