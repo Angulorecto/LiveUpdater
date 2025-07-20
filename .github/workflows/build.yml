@@ -121,7 +121,7 @@ jobs:
       - name: 🧼 Rename jar
         run: |
           mkdir -p out
-          mv target/LiveUpdater-1.0.jar.jar out/plugin-${{ matrix.label }}.jar
+          mv target/LiveUpdater-1.0.jar out/plugin-${{ matrix.label }}.jar
 
       - name: 📤 Upload plugin artifact
         uses: actions/upload-artifact@v4
