@@ -47,13 +47,13 @@ public final class LiveUpdater extends JavaPlugin {
         String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
         if (os.contains("win")) return "windows";
         if (os.contains("mac")) return "macos";
-        return "ubuntu"; // Default to Ubuntu
+        return "linux-ubuntu"; // Use exact match to your release asset name
     }
 
     private String getBinaryName(String os) {
-        if (os.equals("windows")) return "binary-windows-latest.exe";
-        if (os.equals("macos")) return "binary-macos-latest";
-        return "binary-ubuntu-latest";
+        if (os.equals("windows")) return "LiveUpdater-windows.jar";
+        if (os.equals("macos")) return "LiveUpdater-macos.jar";
+        return "LiveUpdater-linux-ubuntu.jar";
     }
 
     private boolean isOutdated(File binary) {
@@ -102,13 +102,12 @@ public final class LiveUpdater extends JavaPlugin {
     }
 
     private void runBinary(File binary) throws IOException {
-        ProcessBuilder pb = new ProcessBuilder(binary.getAbsolutePath());
+        ProcessBuilder pb = new ProcessBuilder("java", "-jar", binary.getAbsolutePath());
         pb.directory(binary.getParentFile());
         pb.redirectErrorStream(true);
-
+    
         Process process = pb.start();
-
-        // Optional: log output
+    
         new Thread(() -> {
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream()))) {
