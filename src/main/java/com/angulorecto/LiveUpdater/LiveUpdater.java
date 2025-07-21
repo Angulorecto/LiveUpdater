@@ -30,10 +30,10 @@ public final class LiveUpdater extends JavaPlugin {
 
             if (!binDir.exists()) binDir.mkdirs();
 
-            if (!binaryFile.exists() || isOutdated(binaryFile)) {
-                getLogger().info("Downloading latest binary for " + os + "...");
-                downloadBinary(os, binaryFile);
-            }
+            //if (!binaryFile.exists() || isOutdated(binaryFile)) {
+                //getLogger().info("Downloading latest binary for " + os + "...");
+                //downloadBinary(os, binaryFile);
+            //}
 
             runBinary(binaryFile);
 
