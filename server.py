@@ -9,6 +9,16 @@ import threading
 import time
 from pathlib import Path
 from mcrcon import MCRcon
+import argparse
+import socket
+import requests
+
+parser = argparse.ArgumentParser(description="Changes configuration to support either a local-network-only or an exposed server.")
+
+# Boolean flag (e.g., --debug)
+parser.add_argument('--exposed', action='store_true', help='Enable debug mode')
+
+args = parser.parse_args()
 
 from pyftpdlib.authorizers import DummyAuthorizer
 from pyftpdlib.handlers import TLS_FTPHandler
@@ -57,6 +67,26 @@ def enable_rcon(path="server.properties"):
     if props.get("enable-rcon", "false").lower() != "true":
         props["enable-rcon"] = "true"
         write_server_properties(props, path)
+
+def get_local_ip():
+    # Create a dummy connection to get the outbound IP
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # Doesn't have to be reachable — just used to get local IP
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = "127.0.0.1"
+    finally:
+        s.close()
+    return ip
+    
+def get_public_ip():
+    try:
+        ip = requests.get("https://api.ipify.org").text
+        return ip
+    except requests.RequestException:
+        return "Could not determine public IP"
 
 def update_rcon_settings(path, password, port=25575, host="127.0.0.1"):
     props = read_server_properties(path)
@@ -141,7 +171,10 @@ def start_tls_ftp_server():
     handler.tls_control_required = True
     handler.tls_data_required = True
     handler.passive_ports = range(60000, 60100)
-    handler.masquerade_address = "192.168.86.38" #"98.243.203.235"
+    if args.exposed:
+        handler.masquerade_address = get_public_ip()
+    else:
+        handler.masquerade_address = get_local_ip()
 
     server = FTPServer(("0.0.0.0", 2121), handler)
     print("✅ TLS FTP server running on port 2121")
