@@ -1,6 +1,6 @@
 package com.angulorecto.LiveUpdater;
 
-import com.angulorecto.LiveUpdater.pluginmgr.ReloadCommand;
+//import com.angulorecto.LiveUpdater.pluginmgr.ReloadCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
