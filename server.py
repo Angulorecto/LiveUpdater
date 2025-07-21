@@ -129,7 +129,7 @@ class LiveFTPHandler(TLS_FTPHandler):
             if plugin_name:
                 print(f"[INFO] Detected plugin: {plugin_name}")
                 rcon_port = read_rcon_port_from_server_properties(SERVER_PROPERTIES_PATH)
-                send_rcon_command("127.0.0.1", rcon_port, RCON_PASSWORD, f"reloadplugin {plugin_name}")
+                send_rcon_command("127.0.0.1", rcon_port, RCON_PASSWORD, f"plugman reload {plugin_name}")
 
 def start_tls_ftp_server():
     authorizer = DummyAuthorizer()
