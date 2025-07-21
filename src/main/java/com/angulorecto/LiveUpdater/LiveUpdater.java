@@ -16,7 +16,7 @@ public final class LiveUpdater extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        getCommand("reloadplugin").setExecutor(new ReloadCommand(this));
+        //getCommand("reloadplugin").setExecutor(new ReloadCommand(this));
 
         saveDefaultConfig();
 
