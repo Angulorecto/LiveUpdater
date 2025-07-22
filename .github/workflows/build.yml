@@ -80,9 +80,6 @@ jobs:
           name: binary-${{ matrix.os }}
           path: .
 
-      - name: List downloaded files
-        run: ls -R
-
       - name: 🔧 Make server binary executable on Linux
         if: runner.os == 'Linux'
         run: chmod +x ./server-linux
@@ -100,6 +97,7 @@ jobs:
       - name: 🏷️ Move binary on Windows
         if: runner.os == 'Windows'
         run: |
+          mkdir -p src/main/resources/bin
           Move-Item -Path server-windows.exe -Destination src/main/resources/bin/server.exe
 
       - name: 🏷️ Move binary on macOS
@@ -120,7 +118,7 @@ jobs:
       - name: 🧼 Rename jar
         run: |
           mkdir -p out
-          mv target/LiveUpdater-1.0.jar out/LiveUpdater-${{ matrix.label }}.jar
+          mv target/LiveUpdater-*.jar out/LiveUpdater-${{ matrix.label }}.jar
 
       - name: 📤 Upload plugin artifact
         uses: actions/upload-artifact@v4
@@ -129,12 +127,37 @@ jobs:
           path: out/LiveUpdater-${{ matrix.label }}.jar
 
   release:
-    name: 🚀 Release Plugin Artifacts Only
+    name: 🚀 Release Plugin + Binaries
     needs: [build-plugins]
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Download plugin JARs
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧾 Read version from plugin.yml
+        id: get_version
+        run: |
+          VERSION=$(grep '^version:' src/main/resources/plugin.yml | awk '{print $2}')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: 📦 Get existing releases and determine tag name
+        id: release_tag
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          VERSION=${{ steps.get_version.outputs.version }}
+          COUNT=$(gh release list --limit 100 | grep "^v$VERSION" | wc -l)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+            echo "name=v$VERSION" >> $GITHUB_OUTPUT
+          else
+            PATCH_NUM=$COUNT
+            echo "tag=v$VERSION-patch-$PATCH_NUM" >> $GITHUB_OUTPUT
+            echo "name=v$VERSION Patch $PATCH_NUM" >> $GITHUB_OUTPUT
+          fi
+
+      - name: ⬇️ Download all plugin artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -142,9 +165,10 @@ jobs:
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ github.run_number }}
-          name: Release v${{ github.run_number }}
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          name: ${{ steps.release_tag.outputs.name }}
           files: |
-            artifacts/LiveUpdater-*/LiveUpdater-*.jar
+            artifacts/**/LiveUpdater-*.jar
+            artifacts/**/server-*.*
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
