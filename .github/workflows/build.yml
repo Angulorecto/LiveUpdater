@@ -55,7 +55,7 @@ jobs:
       - name: 📤 Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ runner.os == 'Windows' && 'binary-windows' || runner.os == 'macOS' && 'binary-macos' || 'binary-linux' }}
+          name: binary-${{ runner.os }}
           path: dist-renamed/*
 
   build-plugins:
@@ -118,29 +118,29 @@ jobs:
             echo "name=v$VERSION Patch $PATCH_NUM" >> $GITHUB_OUTPUT
           fi
 
-      - name: ⬇️ Download Windows binary
+            - name: ⬇️ Download Windows binary
         uses: actions/download-artifact@v4
         with:
-          name: binary-windows
+          name: binary-Windows
           path: artifacts/binaries
-      
+
       - name: ⬇️ Download Linux binary
         uses: actions/download-artifact@v4
         with:
-          name: binary-linux
+          name: binary-Linux
           path: artifacts/binaries
-      
+
       - name: ⬇️ Download macOS binary
         uses: actions/download-artifact@v4
         with:
-          name: binary-macos
+          name: binary-macOS
           path: artifacts/binaries
       
       - name: ⬇️ Download plugin JAR
         uses: actions/download-artifact@v4
         with:
           name: LiveUpdater
-          path: artifacts/plugins
+          path: out
 
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -148,7 +148,7 @@ jobs:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           name: ${{ steps.release_tag.outputs.name }}
           files: |
-            artifacts/plugins/LiveUpdater-*.jar
+            out/LiveUpdater-*.jar
             artifacts/binaries/server-*.*
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
