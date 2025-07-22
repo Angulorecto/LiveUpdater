@@ -144,7 +144,7 @@ jobs:
 
       - name: 📦 List all files
         run: |
-          ls
+          ls ./artifacts/binaries
 
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -152,7 +152,7 @@ jobs:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           name: ${{ steps.release_tag.outputs.name }}
           files: |
-            out/LiveUpdater-*.jar
+            out/LiveUpdater*.jar
             artifacts/binaries/server-*.*
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
