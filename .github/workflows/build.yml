@@ -148,7 +148,7 @@ jobs:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           name: ${{ steps.release_tag.outputs.name }}
           files: |
-            artifacts/**/LiveUpdater-*.jar
-            artifacts/**/server-*.*
+            artifacts/plugins/LiveUpdater-*.jar
+            artifacts/binaries/server-*.*
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
