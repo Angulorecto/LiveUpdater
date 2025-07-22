@@ -142,6 +142,10 @@ jobs:
           name: LiveUpdater
           path: out
 
+      - name: 📦 List all files
+        run: |
+          ls
+
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
