@@ -32,8 +32,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           pip install pyinstaller
-          pyinstaller server.py --onefile --name server-windows --clean --noconfirm --console ^
-            --win-private-assemblies --log-level=DEBUG
+          pyinstaller server.py --onefile --name server-windows --clean --noconfirm --console --win-private-assemblies --log-level=DEBUG
           mkdir dist-renamed
           copy dist\server-windows.exe dist-renamed\
 
