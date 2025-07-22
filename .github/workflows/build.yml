@@ -97,7 +97,6 @@ jobs:
       - name: 🏷️ Move binary on Windows
         if: runner.os == 'Windows'
         run: |
-          mkdir -p src/main/resources/bin
           Move-Item -Path server-windows.exe -Destination src/main/resources/bin/server.exe
 
       - name: 🏷️ Move binary on macOS
