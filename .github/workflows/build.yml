@@ -55,7 +55,7 @@ jobs:
       - name: 📤 Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: binary-${{ matrix.os }}
+          name: ${{ runner.os == 'Windows' && 'binary-windows' || runner.os == 'macOS' && 'binary-macos' || 'binary-linux' }}
           path: dist-renamed/*
 
   build-plugins:
@@ -121,19 +121,19 @@ jobs:
       - name: ⬇️ Download Windows binary
         uses: actions/download-artifact@v4
         with:
-          name: binary-windows-latest
+          name: binary-windows
           path: artifacts/binaries
       
       - name: ⬇️ Download Linux binary
         uses: actions/download-artifact@v4
         with:
-          name: binary-ubuntu-latest
+          name: binary-linux
           path: artifacts/binaries
       
       - name: ⬇️ Download macOS binary
         uses: actions/download-artifact@v4
         with:
-          name: binary-macos-latest
+          name: binary-macos
           path: artifacts/binaries
       
       - name: ⬇️ Download plugin JAR
