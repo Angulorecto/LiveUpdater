@@ -31,8 +31,7 @@ jobs:
       - name: 🏗️ Build Windows binary
         if: runner.os == 'Windows'
         run: |
-          pip install pyinstaller
-          pyinstaller server.py --onefile --name server-windows.exe --clean --noconfirm --console --win-private-assemblies --manifest "server.exe.manifest" --log-level=DEBUG
+          pyinstaller server.py --onefile --name server-windows.exe --clean --noconfirm --console --manifest "server.exe.manifest" --log-level=DEBUG
 
       - name: 🏷️ Move Windows binary
         if: runner.os == 'Windows'
