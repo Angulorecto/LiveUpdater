@@ -153,6 +153,6 @@ jobs:
           name: ${{ steps.release_tag.outputs.name }}
           files: |
             out/LiveUpdater*.jar
-            artifacts/binaries/server-*.*
+            artifacts/binaries/server-*
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
