@@ -34,6 +34,7 @@ jobs:
           pip install pyinstaller
           pyinstaller server.py --onefile --name server-windows.exe --clean --noconfirm --console --win-private-assemblies --manifest "server.exe.manifest" --log-level=DEBUG
           mkdir dist-renamed
+          ls
           ls dist
           ls dist-renamed
           copy dist\server-windows.exe dist-renamed\
