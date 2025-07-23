@@ -1,108 +1,167 @@
-name: Build and Release Plugin
+name: Build Binaries and Plugin
 
 on:
   push:
     branches: [master]
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-binaries:
+    name: Build binary on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          java-version: 17
-          distribution: 'temurin'
-
-      # Use specific Python version for Windows only
-      - name: Set up Python 3.10.11 on Windows
-        if: matrix.os == 'windows-latest'
+      - name: 🔧 Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: 3.10.11
-          architecture: x64
+          architecture: ${{ runner.os == 'Windows' && 'x86' || 'x64' }}
 
-      - name: Set up Python (default for other OSes)
-        if: matrix.os != 'windows-latest'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
 
-      - name: Install dependencies
-        run: python -m pip install --upgrade pip pyinstaller
+      - name: 🏗️ Build Windows binary (32-bit)
+        if: runner.os == 'Windows'
+        run: |
+          pyinstaller server.py --onefile --name server-windows --clean --noconfirm --console --log-level=DEBUG
+          mkdir dist-renamed
+          move dist\server-windows.exe dist-renamed\server-windows.exe
 
-      - name: Build server binary
+      - name: 🛠 Build Linux/macOS binary
+        if: runner.os != 'Windows'
         run: |
           pyinstaller --onefile server.py
-        shell: bash
 
-      - name: Rename server binary
+      - name: 🏷️ Rename binary on macOS
+        if: runner.os == 'macOS'
         run: |
-          if [ "${{ runner.os }}" == "Windows" ]; then
-            mv dist/server.exe server-windows.exe
-          elif [ "${{ runner.os }}" == "macOS" ]; then
-            mv dist/server server-macos
-            chmod +x server-macos
-          else
-            mv dist/server server-linux
-            chmod +x server-linux
-          fi
-        shell: bash
+          mkdir -p dist-renamed
+          mv dist/server dist-renamed/server-macos
+          chmod +x dist-renamed/server-macos
 
-      - name: Upload server binary artifact
+      - name: 🏷️ Rename binary on Linux
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist-renamed
+          mv dist/server dist-renamed/server-linux
+          chmod +x dist-renamed/server-linux
+
+      - name: 📤 Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: server-binaries
-          path: |
-            server-windows.exe
-            server-linux
-            server-macos
+          name: binary-${{ runner.os }}
+          path: dist-renamed/*
+
+  build-plugins:
+    name: Build Plugin
+    needs: build-binaries
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: ☕ Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 22
+
+      - name: 🚀 Build plugin with server binary
+        run: mvn clean package
+
+      - name: 🧼 Rename jar
+        run: |
+          mkdir -p out
+          mv target/LiveUpdater-*.jar out/LiveUpdater.jar
+
+      - name: 📤 Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiveUpdater
+          path: out/LiveUpdater.jar
 
   release:
-    needs: build
+    name: 🚀 Release Plugin + Binaries
+    needs: [build-plugins]
     runs-on: ubuntu-latest
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: server-binaries
-          path: dist/
 
-      - name: Get plugin version
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 📦 Install gh CLI
+        uses: cli/gh-action@v2
+
+      - name: 🧾 Read version from plugin.yml
         id: get_version
         run: |
-          VERSION=$(grep 'version:' plugin.yml | awk '{print $2}')
-          echo "plugin_version=$VERSION" >> $GITHUB_OUTPUT
+          VERSION=$(grep '^version:' src/main/resources/plugin.yml | awk '{print $2}')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Check existing releases
-        id: patch_check
-        run: |
-          VERSION="${{ steps.get_version.outputs.plugin_version }}"
-          RELEASES=$(gh release list --limit 100 | grep "v$VERSION" || true)
-          PATCH_COUNT=$(echo "$RELEASES" | wc -l)
-          if [ "$PATCH_COUNT" -eq 0 ]; then
-            TITLE="v$VERSION"
-          else
-            TITLE="v$VERSION Patch $PATCH_COUNT"
-          fi
-          echo "release_title=$TITLE" >> $GITHUB_OUTPUT
+      - name: 📦 Get existing releases and determine tag name
+        id: release_tag
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          VERSION=${{ steps.get_version.outputs.version }}
+          COUNT=$(gh release list --limit 100 | grep "^v$VERSION" | wc -l)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+            echo "name=v$VERSION" >> $GITHUB_OUTPUT
+          else
+            PATCH_NUM=$COUNT
+            echo "tag=v$VERSION-patch-$PATCH_NUM" >> $GITHUB_OUTPUT
+            echo "name=v$VERSION Patch $PATCH_NUM" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - name: ⬇️ Download Windows binary
+        uses: actions/download-artifact@v4
         with:
-          name: ${{ steps.patch_check.outputs.release_title }}
-          tag_name: ${{ github.ref_name }}
+          name: binary-Windows
+          path: artifacts/binaries
+
+      - name: ⬇️ Download Linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-Linux
+          path: artifacts/binaries
+
+      - name: ⬇️ Download macOS binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-macOS
+          path: artifacts/binaries
+
+      - name: ⬇️ Download plugin JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: LiveUpdater
+          path: out
+
+      - name: 📦 List all files
+        run: |
+          echo "Files in binaries:"
+          ls -lh artifacts/binaries
+          echo "Files in out:"
+          ls -lh out
+
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          name: ${{ steps.release_tag.outputs.name }}
           files: |
-            dist/server-windows.exe
-            dist/server-linux
-            dist/server-macos
-            plugin/build/libs/*.jar
+            out/LiveUpdater.jar
+            artifacts/binaries/server-*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
