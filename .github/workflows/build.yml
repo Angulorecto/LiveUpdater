@@ -37,7 +37,8 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           ls
-          copy dist\server-windows.exe dist-renamed\
+          mkdir dist-renamed
+          copy dist\server-windows.exe dist-renamed\server-windows.exe
 
       - name: 🛠 Build Python executable
         if: runner.os != 'Windows'
