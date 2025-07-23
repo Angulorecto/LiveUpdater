@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
-    <application>
-      <!-- Windows 10 -->
-      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
-      <!-- Windows 11 -->
-      <supportedOS Id="{4a7d2e6f-69f0-4e5f-935b-05f406a6d3d4}"/>
-    </application>
-  </compatibility>
+	  <application>
+	    <!-- Windows 7 -->
+	    <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}"/>
+	    <!-- Windows 8 -->
+	    <supportedOS Id="{4fe270d6-6f5a-4d75-a6a5-6e0c1a2bc9d7}"/>
+	    <!-- Windows 8.1 -->
+	    <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f3de5f3a}"/>
+	    <!-- Windows 10 -->
+	    <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+	    <!-- Windows 11 -->
+	    <supportedOS Id="{2ccd1231-1234-1234-1234-123456789abc}"/>
+	  </application>
+	</compatibility>
 </assembly>
