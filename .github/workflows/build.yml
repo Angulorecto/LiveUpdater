@@ -32,7 +32,7 @@ jobs:
       - name: 🏗️ Build Windows binary (32-bit)
         if: runner.os == 'Windows'
         run: |
-          pyinstaller server.py --onefile --name server-windows.exe --clean --noconfirm --console --log-level=DEBUG
+          pyinstaller server.py --onefile --name server-windows --clean --noconfirm --console --log-level=DEBUG
           mkdir dist-renamed
           move dist\server-windows.exe dist-renamed\server-windows.exe
 
@@ -65,20 +65,20 @@ jobs:
     name: Build Plugin
     needs: build-binaries
     runs-on: ubuntu-latest
-  
+
     steps:
-      - name: 📦 Checkout
+      - name: 📥 Checkout
         uses: actions/checkout@v4
-  
+
       - name: ☕ Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 22
-  
+
       - name: 🚀 Build plugin with server binary
         run: mvn clean package
-  
+
       - name: 🧼 Rename jar
         run: |
           mkdir -p out
@@ -98,6 +98,9 @@ jobs:
     steps:
       - name: 📥 Checkout
         uses: actions/checkout@v4
+
+      - name: 📦 Install gh CLI
+        uses: cli/gh-action@v2
 
       - name: 🧾 Read version from plugin.yml
         id: get_version
@@ -138,7 +141,7 @@ jobs:
         with:
           name: binary-macOS
           path: artifacts/binaries
-      
+
       - name: ⬇️ Download plugin JAR
         uses: actions/download-artifact@v4
         with:
@@ -147,7 +150,10 @@ jobs:
 
       - name: 📦 List all files
         run: |
-          ls ./artifacts/binaries
+          echo "Files in binaries:"
+          ls -lh artifacts/binaries
+          echo "Files in out:"
+          ls -lh out
 
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -155,7 +161,7 @@ jobs:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           name: ${{ steps.release_tag.outputs.name }}
           files: |
-            out/LiveUpdater*.jar
+            out/LiveUpdater.jar
             artifacts/binaries/server-*
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
