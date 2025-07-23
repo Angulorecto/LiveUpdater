@@ -17,26 +17,13 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: 🔧 Install 32-bit Python on Windows
-        if: runner.os == 'Windows'
-        run: |
-          choco install python --version=3.10.11 --x86 --yes
-          setx PATH "C:\Python310-32\Scripts;C:\Python310-32;%PATH%"
-
-      - name: 🐍 Set up Python (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: 🔧 Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-    
-      - name: 📦 Install Python dependencies (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          C:\Python310-32\python.exe -m pip install --upgrade pip
-          C:\Python310-32\python.exe -m pip install pyinstaller -r requirements.txt
+          python-version: '3.10.11'
+          architecture: ${{ runner.os == 'Windows' && 'x86' || 'x64' }}
 
-      - name: 📦 Install Python dependencies
-        if: runner.os != 'Windows'
+      - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -45,7 +32,7 @@ jobs:
       - name: 🏗️ Build Windows binary (32-bit)
         if: runner.os == 'Windows'
         run: |
-          C:\Python310-32\Scripts\pyinstaller.exe server.py --onefile --name server-windows.exe --clean --noconfirm --console --log-level=DEBUG
+          pyinstaller server.py --onefile --name server-windows.exe --clean --noconfirm --console --log-level=DEBUG
           mkdir dist-renamed
           move dist\server-windows.exe dist-renamed\server-windows.exe
 
@@ -59,14 +46,14 @@ jobs:
         run: |
           mkdir -p dist-renamed
           mv dist/server dist-renamed/server-macos
-          chmod +x ./dist-renamed/server-macos
+          chmod +x dist-renamed/server-macos
 
       - name: 🏷️ Rename binary on Linux
         if: runner.os == 'Linux'
         run: |
           mkdir -p dist-renamed
           mv dist/server dist-renamed/server-linux
-          chmod +x ./dist-renamed/server-linux
+          chmod +x dist-renamed/server-linux
 
       - name: 📤 Upload binary
         uses: actions/upload-artifact@v4
