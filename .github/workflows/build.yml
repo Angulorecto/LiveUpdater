@@ -160,6 +160,11 @@ jobs:
           echo "Files in out:"
           ls -lh out
 
+      - name: 🧪 Check PE header architecture
+        if: runner.os == 'Windows'
+        run: |
+          dumpbin /headers artifacts/binaries/server-windows.exe | findstr /C:"machine"
+
       - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
