@@ -40,7 +40,7 @@ jobs:
 
       - name: Build server binary
         run: |
-          pyinstaller server.spec
+          pyinstaller --onefile server.py
         shell: bash
 
       - name: Rename server binary
