@@ -107,9 +107,6 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: 📦 Install gh CLI
-        uses: cli/gh-action@v2
-
       - name: 🧾 Read version from plugin.yml
         id: get_version
         run: |
