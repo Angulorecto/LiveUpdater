@@ -17,6 +17,13 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
+      - name: 🐍 Set up 32-bit Python
+        if: runner.os == 'Windows'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          architecture: 'x86'
+
       - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
@@ -31,7 +38,7 @@ jobs:
       - name: 🏗️ Build Windows binary
         if: runner.os == 'Windows'
         run: |
-          pyinstaller server.py --onefile --name server-windows.exe --clean --noconfirm --console --manifest "server.exe.manifest" --log-level=DEBUG
+          pyinstaller server.py --onefile --name server-windows.exe --clean --noconfirm --console --manifest "server.exe.manifest" --log-level=DEBUG --distpath dist --workpath build
 
       - name: 🏷️ Move Windows binary
         if: runner.os == 'Windows'
