@@ -17,20 +17,26 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      - name: 🐍 Set up Python (Windows)
+      - name: 🔧 Install 32-bit Python on Windows
         if: runner.os == 'Windows'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          architecture: 'x86'
+        run: |
+          choco install python --version=3.10.11 --x86 --yes
+          setx PATH "C:\Python310-32\Scripts;C:\Python310-32;%PATH%"
 
       - name: 🐍 Set up Python (Linux/macOS)
         if: runner.os != 'Windows'
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+    
+      - name: 📦 Install Python dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          C:\Python310-32\python.exe -m pip install --upgrade pip
+          C:\Python310-32\python.exe -m pip install pyinstaller -r requirements.txt
 
       - name: 📦 Install Python dependencies
+        if: runner.os != 'Windows'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -39,7 +45,7 @@ jobs:
       - name: 🏗️ Build Windows binary (32-bit)
         if: runner.os == 'Windows'
         run: |
-          pyinstaller server.py --onefile --name server-windows.exe --clean --noconfirm --console --manifest "server.exe.manifest" --log-level=DEBUG
+          C:\Python310-32\Scripts\pyinstaller.exe server.py --onefile --name server-windows.exe --clean --noconfirm --console --log-level=DEBUG
           mkdir dist-renamed
           move dist\server-windows.exe dist-renamed\server-windows.exe
 
