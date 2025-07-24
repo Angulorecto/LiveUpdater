@@ -63,9 +63,15 @@ jobs:
           mv dist/server dist-renamed/server-linux
           chmod +x dist-renamed/server-linux
 
-      - name: 🧪 Check PE header architecture
+      - name: 🧪 Use dumpbin to check EXE architecture
         if: runner.os == 'Windows'
+        shell: cmd
         run: |
+          :: Find VS installation path
+          for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set VSPATH=%%i
+      
+          :: Run dumpbin via the VC tools environment
+          call "%VSPATH%\VC\Auxiliary\Build\vcvars32.bat"
           dumpbin /headers dist-renamed\server-windows.exe | findstr /C:"machine"
 
       - name: 📤 Upload binary
