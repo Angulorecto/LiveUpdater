@@ -68,13 +68,13 @@ function secureRconPort(port = 25575) {
     const allowRule = `New-NetFirewallRule -DisplayName 'Allow RCON Localhost ${port}' -Direction Inbound -Protocol TCP -LocalPort ${port} -RemoteAddress 127.0.0.1 -Action Allow`;
     const blockRule = `New-NetFirewallRule -DisplayName 'Block RCON External ${port}' -Direction Inbound -Protocol TCP -LocalPort ${port} -RemoteAddress Any -Action Block`;
 
-    const combinedScript = `${allowRule}; ${blockRule}`;
-
-    const command = `Start-Process powershell -Verb runAs -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command \\"${combinedScript}\\""`; // double escaping
+    // IMPORTANT: Escape inner quotes correctly
+    const fullCommand = `${allowRule}; ${blockRule}`;
+    const escapedCommand = `Start-Process powershell -Verb runAs -ArgumentList \\"-NoProfile -ExecutionPolicy Bypass -Command \\\\\\"${fullCommand}\\\\\\"\\"`;
 
     try {
-      execSync(`powershell -Command "${command}"`, { stdio: "inherit" });
-      console.log("[INFO] UAC elevation requested. If accepted, firewall rules should now be in place.");
+      execSync(`powershell -Command "${escapedCommand}"`, { stdio: "inherit" });
+      console.log("[INFO] UAC prompt launched for firewall rules.");
     } catch (e) {
       console.warn("[WARN] Could not elevate permissions or user canceled UAC prompt.");
     }
