@@ -12,10 +12,10 @@ const https = require("https");
 
 const argv = require('yargs').argv;
 
-const PLUGINS_DIR = path.resolve(__dirname, "..", "..", "plugins");
+const PLUGINS_DIR = path.resolve(process.cwd(), "..", "..", "..", "plugins");
 console.log(PLUGINS_DIR);
-const SERVER_PROPERTIES_PATH = path.resolve(process.cwd(), "..", "..", "server.properties");
-const CERT_DIR = path.resolve(__dirname, "certs");
+const SERVER_PROPERTIES_PATH = path.resolve(process.cwd(), "..", "..", "..", "server.properties");
+const CERT_DIR = path.resolve(process.cwd(), "certs");
 const CERT_PATH = path.join(CERT_DIR, "cert.pem");
 const KEY_PATH = path.join(CERT_DIR, "key.pem");
 
