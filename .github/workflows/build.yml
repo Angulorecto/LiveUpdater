@@ -27,16 +27,26 @@ jobs:
       - name: Install pkg
         run: npm install -g pkg
 
-      - name: Build binary
+      - name: Build binary on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
           mkdir -p dist
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            pkg . --targets node18-win-x64 --output dist/server-windows.exe
-          elif [[ "$RUNNER_OS" == "macOS" ]]; then
-            pkg . --targets node18-macos-x64 --output dist/server-macos
-          else
-            pkg . --targets node18-linux-x64 --output dist/server-linux
-          fi
+          pkg . --targets node18-win-x64 --output dist/server-windows.exe
+
+      - name: Build binary on macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p dist
+          pkg . --targets node18-macos-x64 --output dist/server-macos
+
+      - name: Build binary on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p dist
+          pkg . --targets node18-linux-x64 --output dist/server-linux
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
