@@ -17,64 +17,35 @@ jobs:
       - name: 📥 Checkout
         uses: actions/checkout@v4
 
-      # 👇 Only apply Python patch on Windows
-      - name: 🔧 Set up Python (Windows only)
-        if: runner.os == 'Windows'
-        uses: actions/setup-python@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: '3.10.11'
-          architecture: 'x64'
-
-      - name: 🔧 Set up Python (Linux/macOS)
-        if: runner.os != 'Windows'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10.11'
+          node-version: 20
 
       - name: 📦 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+        run: npm install
 
-      - name: 🏗️ Build Windows binary (32-bit)
-        if: runner.os == 'Windows'
+      - name: 🛠 Build binary
         run: |
-          pyinstaller server.py --onefile --name server-windows --clean --noconfirm --console --log-level=DEBUG
-          mkdir dist-renamed
-          move dist\server-windows.exe dist-renamed\server-windows.exe
+          npm install -g pkg
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            pkg ftp-server.js --target node20-win-x64 --output server-windows.exe
+            mkdir dist-renamed
+            move server-windows.exe dist-renamed\\server-windows.exe
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            pkg ftp-server.js --target node20-macos-x64 --output server-macos
+            mkdir -p dist-renamed
+            mv server-macos dist-renamed/server-macos
+            chmod +x dist-renamed/server-macos
+          else
+            pkg ftp-server.js --target node20-linux-x64 --output server-linux
+            mkdir -p dist-renamed
+            mv server-linux dist-renamed/server-linux
+            chmod +x dist-renamed/server-linux
+          fi
+        shell: bash
 
-      - name: 🛠 Build Linux/macOS binary
-        if: runner.os != 'Windows'
-        run: |
-          pyinstaller --onefile server.py
-
-      - name: 🏷️ Rename binary on macOS
-        if: runner.os == 'macOS'
-        run: |
-          mkdir -p dist-renamed
-          mv dist/server dist-renamed/server-macos
-          chmod +x dist-renamed/server-macos
-
-      - name: 🏷️ Rename binary on Linux
-        if: runner.os == 'Linux'
-        run: |
-          mkdir -p dist-renamed
-          mv dist/server dist-renamed/server-linux
-          chmod +x dist-renamed/server-linux
-
-      - name: 🧪 Use dumpbin to check EXE architecture
-        if: runner.os == 'Windows'
-        shell: cmd
-        run: |
-          :: Find VS installation path
-          for /f "usebackq tokens=*" %%i in (`"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set VSPATH=%%i
-      
-          :: Run dumpbin via the VC tools environment
-          call "%VSPATH%\VC\Auxiliary\Build\vcvars32.bat"
-          dumpbin /headers dist-renamed\server-windows.exe | findstr /C:"machine"
-
-      - name: 📤 Upload binary
+      - name: 📤 Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ runner.os }}
@@ -95,7 +66,7 @@ jobs:
           distribution: temurin
           java-version: 22
 
-      - name: 🚀 Build plugin with server binary
+      - name: 🚀 Build plugin
         run: mvn clean package
 
       - name: 🧼 Rename jar
@@ -111,7 +82,7 @@ jobs:
 
   release:
     name: 🚀 Release Plugin + Binaries
-    needs: [build-plugins]
+    needs: build-plugins
     runs-on: ubuntu-latest
 
     steps:
@@ -124,7 +95,7 @@ jobs:
           VERSION=$(grep '^version:' src/main/resources/plugin.yml | awk '{print $2}')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: 📦 Get existing releases and determine tag name
+      - name: 📦 Generate tag info
         id: release_tag
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -164,11 +135,11 @@ jobs:
           name: LiveUpdater
           path: out
 
-      - name: 📦 List all files
+      - name: 📦 List all release files
         run: |
-          echo "Files in binaries:"
+          echo "Binaries:"
           ls -lh artifacts/binaries
-          echo "Files in out:"
+          echo "Plugin:"
           ls -lh out
 
       - name: 🚀 Create GitHub Release

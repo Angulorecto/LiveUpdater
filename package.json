@@ -1,0 +1,29 @@
+{
+  "name": "liveupdater",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/Angulorecto/LiveUpdaterBinary#readme",
+  "bugs": {
+    "url": "https://github.com/Angulorecto/LiveUpdaterBinary/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Angulorecto/LiveUpdaterBinary.git"
+  },
+  "license": "ISC",
+  "author": "Angulorecto",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "fs-extra": "^11.3.0",
+    "ftpd": "^0.2.16",
+    "rcon": "^1.1.0",
+    "rcon-client": "^4.2.5",
+    "selfsigned": "^3.0.1",
+    "x509.js": "^1.0.0"
+  }
+}

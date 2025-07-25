@@ -1,148 +1,95 @@
-// main.js
-const fs = require("fs");
-const os = require("os");
-const https = require("https");
+const ftpd = require("ftpd");
+const fs = require("fs-extra");
 const path = require("path");
-const { spawn } = require("child_process");
-const FtpSrv = require("ftp-srv"); // npm install ftp-srv
-const Rcon = require("rcon");      // npm install rcon
+const selfsigned = require("selfsigned");
+const { Rcon } = require("rcon-client");
 
-// --- CONFIG ---
+// === CONFIG ===
 const FTP_PORT = 2121;
-const FTP_USER = "user";
+const FTP_USER = "admin";
 const FTP_PASS = "password";
-const CERT_PATH = "cert.pem";
-const KEY_PATH = "key.pem";
-const SERVER_PROPERTIES_PATH = "server.properties";
+const FTP_ROOT = path.join(__dirname, "ftp-root");
+const CERT_PATH = path.join(__dirname, "cert.pem");
+const KEY_PATH = path.join(__dirname, "key.pem");
 
-// RCON config
-const RCON_PORT = 25575;
-const RCON_PASSWORD = "changeme";
+const RCON_OPTIONS = {
+  host: "127.0.0.1",
+  port: 25575,
+  password: "yourRconPassword"
+};
 
-// --- Update server.properties ---
-function updateServerProperties(filepath, updates) {
-    let content = "";
-    try {
-        content = fs.readFileSync(filepath, "utf-8");
-    } catch {
-        console.warn(`Warning: ${filepath} not found. Creating new one.`);
-    }
-
-    for (const [key, value] of Object.entries(updates)) {
-        const regex = new RegExp(`^${key}=.*`, "m");
-        if (regex.test(content)) {
-            content = content.replace(regex, `${key}=${value}`);
-        } else {
-            content += `\n${key}=${value}`;
-        }
-    }
-
-    fs.writeFileSync(filepath, content.trim() + "\n");
-    console.log(`Updated ${filepath}`);
+// === TLS Certificate Generation ===
+async function ensureCerts() {
+  if (!(await fs.pathExists(CERT_PATH)) || !(await fs.pathExists(KEY_PATH))) {
+    const pems = selfsigned.generate([{ name: "commonName", value: "localhost" }], { days: 365 });
+    await fs.writeFile(CERT_PATH, pems.cert);
+    await fs.writeFile(KEY_PATH, pems.private);
+    console.log("Generated self-signed cert");
+  }
 }
 
-// --- Open Windows Firewall Port ---
-function openFirewallPort(port) {
-    const cmd = `New-NetFirewallRule -DisplayName "Allow Port ${port}" -Direction Inbound -LocalPort ${port} -Protocol TCP -Action Allow`;
-    spawn("powershell.exe", ["-Command", cmd], { stdio: "inherit" });
+// === RCON Call on Upload ===
+async function notifyRcon(filename) {
+  try {
+    const rcon = await Rcon.connect(RCON_OPTIONS);
+    await rcon.send(`say New file uploaded: ${filename}`);
+    await rcon.end();
+    console.log("RCON command sent.");
+  } catch (err) {
+    console.error("RCON failed:", err);
+  }
 }
 
-// --- Get Public IP ---
-function getPublicIP() {
-    return new Promise((resolve, reject) => {
-        https.get("https://api.ipify.org", (res) => {
-            let data = "";
-            res.on("data", chunk => data += chunk);
-            res.on("end", () => resolve(data.trim()));
-        }).on("error", reject);
+// === Main FTP Server ===
+async function startFtp() {
+  await ensureCerts();
+  await fs.ensureDir(FTP_ROOT);
+
+  const server = new ftpd.FtpServer("0.0.0.0", {
+    getInitialCwd: () => "/",
+    getRoot: () => FTP_ROOT,
+    tlsOptions: {
+      key: fs.readFileSync(KEY_PATH),
+      cert: fs.readFileSync(CERT_PATH),
+    },
+    useWriteFile: false,
+    useReadFile: false,
+    allowUnauthorizedTls: true,
+  });
+
+  server.on("error", (err) => console.error("FTP Server error:", err));
+
+  server.on("client:connected", (conn) => {
+    let username;
+    conn.on("command:user", (user, success, failure) => {
+      if (user === FTP_USER) {
+        username = user;
+        success();
+      } else {
+        failure();
+      }
     });
+
+    conn.on("command:pass", (pass, success, failure) => {
+      if (username === FTP_USER && pass === FTP_PASS) {
+        success(username);
+      } else {
+        failure();
+      }
+    });
+
+    conn.on("file:stor", (req, res) => {
+      const filePath = req.filePath;
+      const filename = path.basename(filePath);
+      console.log("Uploaded:", filename);
+
+      req.pipe(fs.createWriteStream(filePath));
+      req.on("end", () => notifyRcon(filename));
+    });
+  });
+
+  server.listen(FTP_PORT);
+  console.log(`FTP Server running on port ${FTP_PORT}`);
 }
 
-// --- Get Local IP ---
-function getLocalIP() {
-    const interfaces = os.networkInterfaces();
-    for (const iface of Object.values(interfaces)) {
-        for (const net of iface) {
-            if (net.family === "IPv4" && !net.internal) {
-                return net.address;
-            }
-        }
-    }
-    return "127.0.0.1";
-}
-
-// --- Start FTPS Server ---
-async function startFTPS(publicIP) {
-    const ftpServer = new FtpSrv({
-        url: `ftp://0.0.0.0:${FTP_PORT}`,
-        anonymous: false,
-        pasv_url: publicIP,
-        tls: {
-            cert: fs.readFileSync(CERT_PATH),
-            key: fs.readFileSync(KEY_PATH)
-        }
-    });
-
-    ftpServer.on("login", ({ username, password }, resolve, reject) => {
-        if (username === FTP_USER && password === FTP_PASS) {
-            resolve({ root: __dirname });
-        } else {
-            reject(new Error("Invalid credentials"));
-        }
-    });
-
-    ftpServer.listen().then(() => {
-        console.log(`✅ FTPS server running on port ${FTP_PORT}`);
-    });
-}
-
-// --- RCON Logic ---
-async function connectRcon(ip) {
-    return new Promise((resolve, reject) => {
-        const rcon = new Rcon(ip, RCON_PORT, RCON_PASSWORD);
-        rcon.on("auth", () => {
-            console.log("✅ RCON connected!");
-            rcon.send('say FTPS + RCON are both ready!');
-            resolve(rcon);
-        });
-
-        rcon.on("error", (err) => {
-            console.error("❌ RCON error:", err.message);
-            reject(err);
-        });
-
-        rcon.on("end", () => {
-            console.log("🔌 RCON disconnected.");
-        });
-
-        rcon.connect();
-    });
-}
-
-// --- Main Logic ---
-(async () => {
-    const publicIP = await getPublicIP();
-    const localIP = getLocalIP();
-
-    console.log(`🌐 Public IP: ${publicIP}`);
-    console.log(`💻 Local IP:  ${localIP}`);
-
-    updateServerProperties(SERVER_PROPERTIES_PATH, {
-        "server-ip": localIP,
-        "server-port": "25565",
-        "enable-rcon": "true",
-        "rcon.password": RCON_PASSWORD,
-        "rcon.port": RCON_PORT
-    });
-
-    openFirewallPort(FTP_PORT);
-    openFirewallPort(RCON_PORT);
-
-    await startFTPS(publicIP);
-
-    try {
-        await connectRcon(localIP);
-    } catch (err) {
-        console.error("⚠️ Failed to connect to RCON. Is the server running?");
-    }
-})();
+startFtp();
