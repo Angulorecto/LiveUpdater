@@ -35,6 +35,7 @@
   "dependencies": {
     "fs-extra": "^11.3.0",
     "ftpd": "^0.2.16",
+    "js-yaml": "^4.1.0",
     "rcon": "^1.1.0",
     "rcon-client": "^4.2.5",
     "selfsigned": "^3.0.1",
