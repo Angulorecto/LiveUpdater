@@ -29,16 +29,16 @@ jobs:
         run: |
           npm install -g pkg
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            pkg ftp-server.js --target node20-win-x64 --output server-windows.exe
+            pkg server.js --target node20-win-x64 --output server-windows.exe
             mkdir dist-renamed
             move server-windows.exe dist-renamed\\server-windows.exe
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            pkg ftp-server.js --target node20-macos-x64 --output server-macos
+            pkg server.js --target node20-macos-x64 --output server-macos
             mkdir -p dist-renamed
             mv server-macos dist-renamed/server-macos
             chmod +x dist-renamed/server-macos
           else
-            pkg ftp-server.js --target node20-linux-x64 --output server-linux
+            pkg server.js --target node20-linux-x64 --output server-linux
             mkdir -p dist-renamed
             mv server-linux dist-renamed/server-linux
             chmod +x dist-renamed/server-linux
