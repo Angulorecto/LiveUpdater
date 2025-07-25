@@ -4,16 +4,13 @@ const os = require("os");
 const { execSync, spawn } = require("child_process");
 const { Rcon } = require("rcon-client");
 const selfsigned = require("selfsigned");
-const yargs = require("yargs/yargs");
+const yargs = require('yargs');
 const unzipper = require("unzipper");
 const yaml = require("js-yaml");
 const ftpd = require("ftpd");
 const https = require("https");
 
-const argv = yargs(process.argv.slice(2)).option("exposed", {
-  type: "boolean",
-  description: "Expose server externally"
-}).argv;
+const argv = require('yargs').argv;
 
 const PLUGINS_DIR = path.resolve(__dirname, "..", "..", "plugins");
 const SERVER_PROPERTIES_PATH = path.resolve(__dirname, "..", "..", "server.properties");
