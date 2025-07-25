@@ -38,11 +38,15 @@ jobs:
             pkg . --targets node18-linux-x64 --output dist/server-linux
           fi
 
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
+          # Upload the exact binary, not a wildcard
           name: ftp-server-${{ matrix.os }}
-          path: dist/*
+          path: |
+            dist/server-windows.exe
+            dist/server-macos
+            dist/server-linux
 
   build-plugins:
     name: Build Plugin
