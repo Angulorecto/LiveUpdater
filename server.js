@@ -9,7 +9,7 @@ const unzipper = require("unzipper");
 const yaml = require("js-yaml");
 const ftpd = require("ftpd");
 const https = require("https");
-
+const forge = require("node-forge");
 const argv = require('yargs').argv;
 
 const PLUGINS_DIR = path.resolve(process.cwd(), "..", "..", "..", "plugins");
@@ -111,12 +111,67 @@ async function getPluginNameFromJar(filePath) {
 
 async function ensureCerts() {
   await fs.ensureDir(CERT_DIR);
-  if (!(await fs.exists(CERT_PATH)) || !(await fs.exists(KEY_PATH))) {
-    const pems = selfsigned.generate([{ name: "commonName", value: "localhost" }], { days: 365 });
-    await fs.writeFile(CERT_PATH, pems.cert);
-    await fs.writeFile(KEY_PATH, pems.private);
-    console.log("[INFO] Generated self-signed TLS certs.");
+
+  const caCertPath = path.join(CERT_DIR, "ca.pem");
+  const serverCertPath = path.join(CERT_DIR, "server.pem");
+  const serverKeyPath = path.join(CERT_DIR, "server-key.pem");
+  const clientCertPath = path.join(CERT_DIR, "client.pem");
+  const clientKeyPath = path.join(CERT_DIR, "client-key.pem");
+
+  const exists = await Promise.all([
+    fs.exists(caCertPath),
+    fs.exists(serverCertPath),
+    fs.exists(serverKeyPath),
+    fs.exists(clientCertPath),
+    fs.exists(clientKeyPath),
+  ]);
+
+  if (exists.every(Boolean)) {
+    console.log("[INFO] Existing CA/server/client certs found.");
+    return;
   }
+
+  function createKeyPair() {
+    return forge.pki.rsa.generateKeyPair(2048);
+  }
+
+  function createCert(commonName, issuer, issuerKey, subjectKey, isCA = false) {
+    const cert = forge.pki.createCertificate();
+    cert.publicKey = subjectKey.publicKey;
+    cert.serialNumber = (Math.floor(Math.random() * 1000000) + 1).toString();
+    cert.validity.notBefore = new Date();
+    cert.validity.notAfter = new Date();
+    cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 10);
+
+    cert.setSubject([{ name: "commonName", value: commonName }]);
+    cert.setIssuer([{ name: "commonName", value: issuer.commonName }]);
+
+    cert.setExtensions([
+      { name: "basicConstraints", cA: isCA },
+      { name: "keyUsage", digitalSignature: true, keyCertSign: isCA, keyEncipherment: !isCA },
+      { name: "extKeyUsage", serverAuth: !isCA, clientAuth: !isCA },
+    ]);
+
+    cert.sign(issuerKey.privateKey, forge.md.sha256.create());
+    return cert;
+  }
+
+  const caKey = createKeyPair();
+  const caCert = createCert("MyRootCA", { commonName: "MyRootCA" }, caKey, caKey, true);
+
+  const serverKey = createKeyPair();
+  const serverCert = createCert("localhost", { commonName: "MyRootCA" }, caKey, serverKey, false);
+
+  const clientKey = createKeyPair();
+  const clientCert = createCert("pluginuploader", { commonName: "MyRootCA" }, caKey, clientKey, false);
+
+  await fs.writeFile(caCertPath, forge.pki.certificateToPem(caCert));
+  await fs.writeFile(serverCertPath, forge.pki.certificateToPem(serverCert));
+  await fs.writeFile(serverKeyPath, forge.pki.privateKeyToPem(serverKey.privateKey));
+  await fs.writeFile(clientCertPath, forge.pki.certificateToPem(clientCert));
+  await fs.writeFile(clientKeyPath, forge.pki.privateKeyToPem(clientKey.privateKey));
+
+  console.log("[INFO] CA, server, and client certs generated.");
 }
 
 async function startFtpServer() {
@@ -129,18 +184,19 @@ async function startFtpServer() {
     getInitialCwd: () => "/",
     getRoot: () => PLUGINS_DIR,
     tlsOptions: {
-      cert: fs.readFileSync(CERT_PATH),
-      key: fs.readFileSync(KEY_PATH),
-      requestCert: false,
-      rejectUnauthorized: false
+        key: fs.readFileSync(path.join(CERT_DIR, "server-key.pem")),
+        cert: fs.readFileSync(path.join(CERT_DIR, "server.pem")),
+        ca: [fs.readFileSync(path.join(CERT_DIR, "ca.pem"))],
+        requestCert: true,
+        rejectUnauthorized: true
     },
     useWriteFile: false,
     useReadFile: false,
-    allowUnauthorizedTls: true,
+    allowUnauthorizedTls: false,
     passive: {
-      portRangeStart: 60000,
-      portRangeEnd: 60100,
-      externalAddress: address
+        portRangeStart: 60000,
+        portRangeEnd: 60100,
+        externalAddress: address
     }
   });
 
