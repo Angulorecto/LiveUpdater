@@ -24,8 +24,10 @@
     "outputPath": "dist"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "build": "npm run build:win && npm run build:linux && npm run build:mac",
+    "build:win": "pkg . --targets node18-win-x64 --output dist/server-windows.exe",
+    "build:linux": "pkg . --targets node18-linux-x64 --output dist/server-linux",
+    "build:mac": "pkg . --targets node18-macos-x64 --output dist/server-macos"
   },
   "dependencies": {
     "fs-extra": "^11.3.0",
