@@ -97,29 +97,38 @@ jobs:
             echo "name=v$VERSION Patch $PATCH_NUM" >> $GITHUB_OUTPUT
           fi
 
-      - name: ⬇️ Download Windows binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-Windows
-          path: artifacts/binaries
-
-      - name: ⬇️ Download Linux binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-Linux
-          path: artifacts/binaries
-
-      - name: ⬇️ Download macOS binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-macOS
-          path: artifacts/binaries
-
       - name: ⬇️ Download plugin JAR
         uses: actions/download-artifact@v4
         with:
           name: LiveUpdater
           path: out
+
+      # Download binaries (zips or raw folders)
+      - name: ⬇️ Download Windows binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ftp-server-windows-latest
+          path: temp/windows
+
+      - name: ⬇️ Download macOS binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ftp-server-macos-latest
+          path: temp/macos
+
+      - name: ⬇️ Download Linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: ftp-server-ubuntu-latest
+          path: temp/linux
+
+      # Extract everything from zip files (if zipped)
+      - name: 📦 Unzip binaries if needed
+        run: |
+          mkdir -p artifacts/binaries
+          unzip -o 'temp/windows/*.zip' -d artifacts/binaries || cp temp/windows/* artifacts/binaries
+          unzip -o 'temp/macos/*.zip' -d artifacts/binaries || cp temp/macos/* artifacts/binaries
+          unzip -o 'temp/linux/*.zip' -d artifacts/binaries || cp temp/linux/* artifacts/binaries
 
       - name: 📦 List all release files
         run: |
@@ -135,6 +144,6 @@ jobs:
           name: ${{ steps.release_tag.outputs.name }}
           files: |
             out/LiveUpdater.jar
-            artifacts/binaries/server-*
+            artifacts/binaries/*
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
