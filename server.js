@@ -64,21 +64,39 @@ function getPublicIP() {
 }
 
 function secureRconPort(port = 25575) {
-  if (os.platform() === "win32") {
-    const allowRule = `New-NetFirewallRule -DisplayName 'Allow RCON Localhost ${port}' -Direction Inbound -Protocol TCP -LocalPort ${port} -RemoteAddress 127.0.0.1 -Action Allow`;
-    const blockRule = `New-NetFirewallRule -DisplayName 'Block RCON External ${port}' -Direction Inbound -Protocol TCP -LocalPort ${port} -RemoteAddress Any -Action Block`;
+  if (os.platform() !== "win32") return;
 
-    // IMPORTANT: Escape inner quotes correctly
-    const fullCommand = `${allowRule}; ${blockRule}`;
-    const escapedCommand = `Start-Process powershell -Verb runAs -ArgumentList \\"-NoProfile -ExecutionPolicy Bypass -Command \\\\\\"${fullCommand}\\\\\\"\\"`;
+  const psScript = `
+try {
+    Write-Output "Adding RCON firewall rules..."
+    New-NetFirewallRule -DisplayName 'Allow RCON Localhost ${port}' -Direction Inbound -Protocol TCP -LocalPort ${port} -RemoteAddress 127.0.0.1 -Action Allow -ErrorAction Stop
+    New-NetFirewallRule -DisplayName 'Block RCON External ${port}' -Direction Inbound -Protocol TCP -LocalPort ${port} -RemoteAddress Any -Action Block -ErrorAction Stop
+    Write-Output "✅ RCON firewall rules added."
+} catch {
+    Write-Output "❌ Error: $($_.Exception.Message)"
+    exit 1
+}
+Pause
+`;
 
-    try {
-      execSync(`powershell -Command "${escapedCommand}"`, { stdio: "inherit" });
-      console.log("[INFO] UAC prompt launched for firewall rules.");
-    } catch (e) {
-      console.warn("[WARN] Could not elevate permissions or user canceled UAC prompt.");
+  const tmpFile = path.join(os.tmpdir(), `firewall-${Date.now()}.ps1`);
+  fs.writeFileSync(tmpFile, psScript);
+
+  const args = [
+    '-Command',
+    `Start-Process powershell -ArgumentList '-ExecutionPolicy Bypass -File "${tmpFile}"' -Verb runAs`
+  ];
+
+  const child = spawn("powershell", args, { stdio: "inherit" });
+
+  child.on("exit", (code) => {
+    fs.unlinkSync(tmpFile); // Optional cleanup
+    if (code === 0) {
+      console.log("[SUCCESS] Firewall rules applied.");
+    } else {
+      console.warn("[FAILURE] Firewall rule script did not complete successfully.");
     }
-  }
+  });
 }
 
 async function sendRconCommand(command) {
