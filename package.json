@@ -38,6 +38,7 @@
     "rcon": "^1.1.0",
     "rcon-client": "^4.2.5",
     "selfsigned": "^3.0.1",
-    "unzipper": "^0.12.3"
+    "unzipper": "^0.12.3",
+    "yargs": "^17.7.2"
   }
 }
