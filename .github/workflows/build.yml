@@ -8,48 +8,34 @@ on:
 jobs:
   build-binaries:
     name: Build binary on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - name: 📥 Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 18
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: npm install
 
-      - name: 🛠 Build binary
-        run: |
-          npm install -g pkg
-          if [[ "${{ runner.os }}" == "Windows" ]]; then
-            pkg server.js --target node20-win-x64 --output server-windows.exe
-            mkdir dist-renamed
-            move server-windows.exe dist-renamed\\server-windows.exe
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            pkg server.js --target node20-macos-x64 --output server-macos
-            mkdir -p dist-renamed
-            mv server-macos dist-renamed/server-macos
-            chmod +x dist-renamed/server-macos
-          else
-            pkg server.js --target node20-linux-x64 --output server-linux
-            mkdir -p dist-renamed
-            mv server-linux dist-renamed/server-linux
-            chmod +x dist-renamed/server-linux
-          fi
-        shell: bash
+      - name: Install pkg
+        run: npm install -g pkg
 
-      - name: 📤 Upload binary artifact
+      - name: Build binary
+        run: |
+          pkg . --targets node18-${{ matrix.os == 'windows-latest' && 'win-x64' || matrix.os == 'macos-latest' && 'macos-x64' || 'linux-x64' }} --output dist/ftp-server
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: binary-${{ runner.os }}
-          path: dist-renamed/*
+          name: ftp-server-${{ matrix.os }}
+          path: dist/ftp-server*
 
   build-plugins:
     name: Build Plugin
