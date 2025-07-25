@@ -8,13 +8,13 @@ on:
 jobs:
   build-binaries:
     name: Build binary on ${{ matrix.os }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -29,13 +29,20 @@ jobs:
 
       - name: Build binary
         run: |
-          pkg . --targets node18-${{ matrix.os == 'windows-latest' && 'win-x64' || matrix.os == 'macos-latest' && 'macos-x64' || 'linux-x64' }} --output dist/ftp-server
+          mkdir -p dist
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            pkg . --targets node18-win-x64 --output dist/server-windows.exe
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            pkg . --targets node18-macos-x64 --output dist/server-macos
+          else
+            pkg . --targets node18-linux-x64 --output dist/server-linux
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ftp-server-${{ matrix.os }}
-          path: dist/ftp-server*
+          path: dist/*
 
   build-plugins:
     name: Build Plugin
@@ -103,7 +110,7 @@ jobs:
           name: LiveUpdater
           path: out
 
-      # Download binaries (zips or raw folders)
+      # Download binaries
       - name: ⬇️ Download Windows binary
         uses: actions/download-artifact@v4
         with:
@@ -122,13 +129,15 @@ jobs:
           name: ftp-server-ubuntu-latest
           path: temp/linux
 
-      # Extract everything from zip files (if zipped)
-      - name: 📦 Unzip binaries if needed
+      # Move unzipped or zipped binaries into release folder
+      - name: 📦 Collect binaries
         run: |
           mkdir -p artifacts/binaries
-          unzip -o 'temp/windows/*.zip' -d artifacts/binaries || cp temp/windows/* artifacts/binaries
-          unzip -o 'temp/macos/*.zip' -d artifacts/binaries || cp temp/macos/* artifacts/binaries
-          unzip -o 'temp/linux/*.zip' -d artifacts/binaries || cp temp/linux/* artifacts/binaries
+          for platform in windows macos linux; do
+            src=temp/$platform
+            file=$(find $src -type f -name 'server-*' | head -n 1)
+            cp "$file" "artifacts/binaries/$(basename $file)"
+          done
 
       - name: 📦 List all release files
         run: |
