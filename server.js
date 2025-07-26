@@ -192,6 +192,12 @@ async function ensureCerts() {
   await fs.writeFile(clientCertPath, forge.pki.certificateToPem(clientCert));
   await fs.writeFile(clientKeyPath, forge.pki.privateKeyToPem(clientKey.privateKey));
 
+  // Convert client private key PEM to DER
+  const clientKeyDer = forge.asn1.toDer(forge.pki.privateKeyToAsn1(clientKey.privateKey)).getBytes();
+  const clientKeyDerBuffer = Buffer.from(clientKeyDer, 'binary');
+  const clientDerPath = path.join(CERT_DIR, "client.der");
+  await fs.writeFile(clientDerPath, clientKeyDerBuffer);
+
   console.log("[INFO] CA, server, and client certs generated.");
 }
 
@@ -199,60 +205,46 @@ async function startFtpServer() {
   await ensureCerts();
   await fs.ensureDir(PLUGINS_DIR);
 
-  const address = argv.exposed ? await getPublicIP() : "127.0.0.1";
-
-  const server = new ftpd.FtpServer("0.0.0.0", {
-    getInitialCwd: () => "/",
-    getRoot: () => PLUGINS_DIR,
-    tlsOptions: {
-        key: fs.readFileSync(path.join(CERT_DIR, "server-key.pem")),
-        cert: fs.readFileSync(path.join(CERT_DIR, "server.pem")),
-        ca: [fs.readFileSync(path.join(CERT_DIR, "ca.pem"))],
-        requestCert: true,
-        rejectUnauthorized: true
+  const server = new ftpd({
+    cnf: {
+      port: FTP_PORT,
+      securePort: argv.exposed ? FTP_PORT : undefined,
+      username: FTP_USER,
+      password: FTP_PASS,
+      basefolder: PLUGINS_DIR,
+      minDataPort: 60000,
+      // optionally maxDataPort if supported
     },
-    useWriteFile: false,
-    useReadFile: false,
-    allowUnauthorizedTls: false,
-    passive: {
-        portRangeStart: 60000,
-        portRangeEnd: 60100,
-        externalAddress: address
-    }
-  });
-
-  server.on("client:connected", conn => {
-    let username = null;
-    conn.on("command:user", (user, success, failure) => {
-      if (user === FTP_USER) {
-        username = user;
-        success();
-      } else failure();
-    });
-    conn.on("command:pass", (pass, success, failure) => {
-      if (username === FTP_USER && pass === FTP_PASS) {
-        success(username);
-      } else failure();
-    });
-    conn.on("file:stor", (req, res) => {
-      const filename = path.basename(req.filePath);
-      const fullPath = path.join(PLUGINS_DIR, filename);
-      req.pipe(fs.createWriteStream(fullPath));
-      req.on("end", async () => {
-        console.log("[INFO] Uploaded:", filename);
-        if (filename.endsWith(".jar")) {
+    tls: argv.exposed ? {
+      key: fs.readFileSync(path.join(CERT_DIR, 'server-key.pem')),
+      cert: fs.readFileSync(path.join(CERT_DIR, 'server.pem')),
+      ca: fs.readFileSync(path.join(CERT_DIR, 'ca.pem')),
+      requestCert: true,
+      rejectUnauthorized: true
+    } : undefined,
+    hdl: {
+      // Handler for STOR (file upload)
+      upload: async (username, filepath, filename, dataBuffer, offset) => {
+        console.log('[INFO] Uploaded:', filename);
+        // Write the file to disk
+        const fullPath = path.join(PLUGINS_DIR, filepath, filename);
+        await fs.ensureDir(path.dirname(fullPath));
+        await fs.writeFile(fullPath, dataBuffer);
+        // If it's a JAR, reload plugin
+        if (filename.endsWith('.jar')) {
           const plugin = await getPluginNameFromJar(fullPath);
           if (plugin) {
-            console.log("[INFO] Detected plugin:", plugin);
+            console.log('[INFO] Detected plugin:', plugin);
             await sendRconCommand(`plugman reload ${plugin}`);
           }
         }
-      });
-    });
+        return true; // signal success
+      }
+    }
   });
 
-  server.listen(FTP_PORT);
-  console.log(`✅ TLS FTP Server running on port ${FTP_PORT} (${argv.exposed ? "external" : "local"})`);
+  server.start();
+  console.log(`✅ jsftpd server listening on port ${FTP_PORT}${argv.exposed ? ' (TLS)' : ''}`);
 }
 
 // === Entry Point ===
