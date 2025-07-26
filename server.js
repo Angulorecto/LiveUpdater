@@ -208,11 +208,20 @@ async function startFtpServer() {
   const server = new ftpd({
     debug: true,
     cnf: {
-      port: FTP_PORT,
+      port: 2121,               // plain FTP (optional if using TLS)
+      securePort: 2121,         // required for TLS support
       username: FTP_USER,
       password: FTP_PASS,
       basefolder: PLUGINS_DIR,
       minDataPort: 60000,
+      allowLoginWithoutPassword: false,
+      allowUserFileCreate: true,
+      allowUserFileRetrieve: true,
+      allowUserFileOverwrite: true,
+      allowUserFileDelete: true,
+      allowUserFolderCreate: true,
+      allowUserFolderDelete: true,
+      allowAnonymousLogin: false
     },
     tls: {
       key: fs.readFileSync(path.join(CERT_DIR, 'server-key.pem')),
@@ -222,7 +231,6 @@ async function startFtpServer() {
       rejectUnauthorized: true
     },
     hdl: {
-      // Upload handler
       upload: async (username, filepath, filename, dataBuffer, offset) => {
         console.log('[INFO] Uploaded:', filename);
         const fullPath = path.join(PLUGINS_DIR, filepath, filename);
