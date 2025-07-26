@@ -220,8 +220,8 @@ async function startFtpServer() {
       key: fs.readFileSync(path.join(CERT_DIR, 'server-key.pem')),
       cert: fs.readFileSync(path.join(CERT_DIR, 'server.pem')),
       ca: fs.readFileSync(path.join(CERT_DIR, 'ca.pem')),
-      requestCert: true,
-      rejectUnauthorized: true
+      requestCert: false,
+      rejectUnauthorized: false
     } : undefined,
     hdl: {
       // Handler for STOR (file upload)
