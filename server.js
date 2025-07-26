@@ -213,6 +213,7 @@ async function startFtpServer() {
       password: FTP_PASS,
       basefolder: PLUGINS_DIR,
       minDataPort: 60000,
+      maxDataPort: 61000,
       // optionally maxDataPort if supported
     },
     tls: argv.exposed ? {
@@ -224,13 +225,23 @@ async function startFtpServer() {
     } : undefined,
     hdl: {
       // Handler for STOR (file upload)
+      login: async (username, password) => {
+        if (username === FTP_USER && password === FTP_PASS) {
+          console.log(`[INFO] FTP login successful: ${username}`);
+          return true;
+        } else {
+          console.warn(`[WARN] FTP login failed for ${username}`);
+          return false;
+        }
+      },
+
+      // Upload handler
       upload: async (username, filepath, filename, dataBuffer, offset) => {
         console.log('[INFO] Uploaded:', filename);
-        // Write the file to disk
         const fullPath = path.join(PLUGINS_DIR, filepath, filename);
         await fs.ensureDir(path.dirname(fullPath));
         await fs.writeFile(fullPath, dataBuffer);
-        // If it's a JAR, reload plugin
+
         if (filename.endsWith('.jar')) {
           const plugin = await getPluginNameFromJar(fullPath);
           if (plugin) {
@@ -238,7 +249,8 @@ async function startFtpServer() {
             await sendRconCommand(`plugman reload ${plugin}`);
           }
         }
-        return true; // signal success
+
+        return true;
       }
     }
   });
