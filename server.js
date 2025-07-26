@@ -217,15 +217,12 @@ async function startFtpServer() {
       maxDataPort: 61000,
       // optionally maxDataPort if supported
     },
-    authenticate: (username, password) => {
-      return username === FTP_USER && password === FTP_PASS;
-    },
     tls: argv.exposed ? {
       key: fs.readFileSync(path.join(CERT_DIR, 'server-key.pem')),
       cert: fs.readFileSync(path.join(CERT_DIR, 'server.pem')),
       ca: fs.readFileSync(path.join(CERT_DIR, 'ca.pem')),
-      requestCert: false,
-      rejectUnauthorized: false
+      requestCert: true,
+      rejectUnauthorized: true
     } : undefined,
     hdl: {
       // Handler for STOR (file upload)
