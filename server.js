@@ -206,6 +206,7 @@ async function startFtpServer() {
   await fs.ensureDir(PLUGINS_DIR);
 
   const server = new ftpd({
+    debug: true,
     cnf: {
       port: FTP_PORT,
       securePort: argv.exposed ? FTP_PORT : undefined,
@@ -215,6 +216,9 @@ async function startFtpServer() {
       minDataPort: 60000,
       maxDataPort: 61000,
       // optionally maxDataPort if supported
+    },
+    authenticate: (username, password) => {
+      return username === FTP_USER && password === FTP_PASS;
     },
     tls: argv.exposed ? {
       key: fs.readFileSync(path.join(CERT_DIR, 'server-key.pem')),
@@ -226,6 +230,7 @@ async function startFtpServer() {
     hdl: {
       // Handler for STOR (file upload)
       login: async (username, password) => {
+        console.log(`[DEBUG] Login attempt: ${username} / ${password}`);
         if (username === FTP_USER && password === FTP_PASS) {
           console.log(`[INFO] FTP login successful: ${username}`);
           return true;
