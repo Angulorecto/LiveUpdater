@@ -205,49 +205,45 @@ async function startFtpServer() {
   await ensureCerts();
   await fs.ensureDir(PLUGINS_DIR);
 
-  const server = createServer({
-    host: '0.0.0.0',
-    port: FTP_PORT,
-    tls: argv.exposed
-      ? {
-          key: fs.readFileSync(path.join(CERT_DIR, 'server-key.pem')),
-          cert: fs.readFileSync(path.join(CERT_DIR, 'server.pem')),
-          ca: fs.readFileSync(path.join(CERT_DIR, 'ca.pem')),
-          requestCert: true,
-          rejectUnauthorized: false,
-        }
-      : undefined,
-    passive: {
-      enabled: true,
-      portRange: [60000, 60100],
+  const server = new ftpd({
+    debug: true,
+    cnf: {
+      port: FTP_PORT,
+      username: FTP_USER,
+      password: FTP_PASS,
+      basefolder: PLUGINS_DIR,
+      minDataPort: 60000,
     },
-  });
+    tls: {
+      key: fs.readFileSync(path.join(CERT_DIR, 'server-key.pem')),
+      cert: fs.readFileSync(path.join(CERT_DIR, 'server.pem')),
+      ca: fs.readFileSync(path.join(CERT_DIR, 'ca.pem')),
+      requestCert: true,
+      rejectUnauthorized: true
+    },
+    hdl: {
+      // Upload handler
+      upload: async (username, filepath, filename, dataBuffer, offset) => {
+        console.log('[INFO] Uploaded:', filename);
+        const fullPath = path.join(PLUGINS_DIR, filepath, filename);
+        await fs.ensureDir(path.dirname(fullPath));
+        await fs.writeFile(fullPath, dataBuffer);
 
-  server.on('login', ({ username, password }) => {
-    console.log(`[DEBUG] Login attempt: ${username} / ${password}`);
-    if (username === FTP_USER && password === FTP_PASS) {
-      console.log(`[INFO] FTP login successful: ${username}`);
-      return { root: PLUGINS_DIR };
-    }
-    return false;
-  });
+        if (filename.endsWith('.jar')) {
+          const plugin = await getPluginNameFromJar(fullPath);
+          if (plugin) {
+            console.log('[INFO] Detected plugin:', plugin);
+            await sendRconCommand(`plugman reload ${plugin}`);
+          }
+        }
 
-  server.on('upload', async ({ filename, user, filepath }) => {
-    const fullPath = path.join(filepath, filename);
-    console.log(`[INFO] Uploaded: ${fullPath}`);
-
-    if (filename.endsWith(".jar")) {
-      const plugin = await getPluginNameFromJar(fullPath);
-      if (plugin) {
-        console.log("[INFO] Detected plugin:", plugin);
-        await sendRconCommand(`plugman reload ${plugin}`);
+        return true;
       }
     }
   });
 
-  server.listen().then(() => {
-    console.log(`✅ FTP server started on port ${FTP_PORT}${argv.exposed ? " (TLS)" : ""}`);
-  });
+  server.start();
+  console.log(`✅ jsftpd server listening on port ${FTP_PORT} (TLS)`);
 }
 
 // === Entry Point ===
