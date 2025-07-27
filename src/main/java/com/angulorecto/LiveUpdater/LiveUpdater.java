@@ -5,111 +5,94 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.nio.file.*;
-import java.util.Locale;
+import java.util.Arrays;
+import java.util.List;
 
 public final class LiveUpdater extends JavaPlugin {
 
-    private final String repo = "Angulorecto/LiveUpdater";
-    private final String apiUrl = "https://api.github.com/repos/" + repo + "/releases/latest";
+    private final File pluginFolder = getDataFolder();
+    private final File minicondaDir = new File(pluginFolder, "miniconda3");
+    private final String minicondaUrl = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe";
+    private final File installerFile = new File(pluginFolder, "miniconda_installer.exe");
+    private final File pythonScript = new File(pluginFolder, "live_updater.py");
 
     @Override
     public void onEnable() {
-        saveDefaultConfig();
-
         getLogger().info("LiveUpdater plugin enabled.");
 
+        getServer().getScheduler().runTaskAsynchronously(this, () -> {
+            try {
+                if (!isPythonAvailable()) {
+                    getLogger().warning("Python not found. Installing Miniconda...");
+                    installMiniconda();
+                }
+
+                getLogger().info("Installing dependencies...");
+                installDependencies();
+
+                getLogger().info("Running Python script...");
+                runPythonScript();
+
+            } catch (Exception e) {
+                getLogger().severe("LiveUpdater failed: " + e.getMessage());
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private boolean isPythonAvailable() {
         try {
-            String os = detectOS();
-            String filename = getBinaryName(os);
-            File binDir = new File(getDataFolder(), "bin");
-            File binaryFile = new File(binDir, filename);
-
-            if (!binDir.exists()) binDir.mkdirs();
-
-            if (!binaryFile.exists()) {
-                getLogger().info("Downloading latest binary for " + os + "...");
-                downloadBinary(os, binaryFile);
-            }
-
-            runBinary(binaryFile);
-
+            Process process = new ProcessBuilder(minicondaDir + "\\Scripts\\python.exe", "--version")
+                    .redirectErrorStream(true).start();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String line = reader.readLine();
+            process.waitFor();
+            return line != null && line.toLowerCase().contains("python");
         } catch (Exception e) {
-            getLogger().severe("Failed to initialize LiveUpdater: " + e.getMessage());
-            e.printStackTrace();
+            return false;
         }
     }
 
-    private String detectOS() {
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        if (os.contains("win")) return "windows";
-        if (os.contains("mac")) return "macos";
-        return "linux-ubuntu"; // Match your GitHub asset naming
-    }
+    private void installMiniconda() throws Exception {
+        if (!pluginFolder.exists()) pluginFolder.mkdirs();
 
-    private String getBinaryName(String os) {
-        if (os.equals("windows")) return "server-windows.exe";
-        if (os.equals("macos")) return "server-macos";
-        return "server-linux-ubuntu";
-    }
-
-    private void downloadBinary(String os, File outputFile) throws IOException {
-        String assetName = getBinaryName(os);
-
-        HttpURLConnection connection = (HttpURLConnection) new URL(apiUrl).openConnection();
-        connection.setRequestProperty("Accept", "application/vnd.github.v3+json");
-
-        if (connection.getResponseCode() != 200) {
-            throw new IOException("GitHub API returned code " + connection.getResponseCode());
+        if (!installerFile.exists()) {
+            getLogger().info("Downloading Miniconda...");
+            downloadFile(minicondaUrl, installerFile);
         }
 
-        String json = new BufferedReader(new InputStreamReader(connection.getInputStream()))
-                .lines()
-                .reduce("", (a, b) -> a + b);
+        getLogger().info("Running Miniconda installer...");
+        Process process = new ProcessBuilder(
+                installerFile.getAbsolutePath(),
+                "/InstallationType=JustMe",
+                "/RegisterPython=0",
+                "/S",
+                "/D=" + minicondaDir.getAbsolutePath()
+        ).start();
 
-        String assetUrl = extractDownloadUrl(json, assetName);
-        if (assetUrl == null) throw new IOException("Could not find asset URL for: " + assetName);
-
-        getLogger().info("Downloading binary from: " + assetUrl);
-
-        HttpURLConnection fileConn = (HttpURLConnection) new URL(assetUrl).openConnection();
-        fileConn.setRequestProperty("Accept", "application/octet-stream");
-
-        try (InputStream in = fileConn.getInputStream()) {
-            Files.copy(in, outputFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-        }
-
-        if (!System.getProperty("os.name").toLowerCase().contains("win")) {
-            if (!outputFile.setExecutable(true)) {
-                getLogger().warning("Could not make binary executable: " + outputFile.getName());
-            }
-        }
+        int code = process.waitFor();
+        if (code != 0) throw new RuntimeException("Miniconda install failed with code: " + code);
     }
 
-    private String extractDownloadUrl(String json, String assetName) {
-        String marker = "\"name\":\"" + assetName + "\"";
-        int index = json.indexOf(marker);
-        if (index == -1) return null;
-
-        int urlStart = json.lastIndexOf("\"browser_download_url\":\"", index);
-        if (urlStart == -1) return null;
-
-        urlStart += "\"browser_download_url\":\"".length();
-        int urlEnd = json.indexOf("\"", urlStart);
-
-        return json.substring(urlStart, urlEnd).replace("\\u0026", "&");
+    private void installDependencies() throws Exception {
+        String pip = minicondaDir + "\\Scripts\\pip.exe";
+        List<String> command = Arrays.asList(pip, "install", "requests"); // Add more packages here
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.inheritIO();
+        Process process = pb.start();
+        int result = process.waitFor();
+        if (result != 0) throw new RuntimeException("Failed to install Python dependencies.");
     }
 
-    private void runBinary(File binary) throws IOException {
-        ProcessBuilder pb;
+    private void runPythonScript() throws Exception {
+        if (!pythonScript.exists())
+            throw new FileNotFoundException("Missing Python script: live_updater.py");
 
-        if (binary.getName().endsWith(".exe")) {
-            pb = new ProcessBuilder(binary.getAbsolutePath());
-        } else {
-            pb = new ProcessBuilder(binary.getAbsolutePath());
-        }
-
-        pb.directory(binary.getParentFile());
+        ProcessBuilder pb = new ProcessBuilder(
+                minicondaDir + "\\Scripts\\python.exe",
+                pythonScript.getAbsolutePath()
+        );
+        pb.directory(pluginFolder);
         pb.redirectErrorStream(true);
 
         Process process = pb.start();
@@ -119,16 +102,32 @@ public final class LiveUpdater extends JavaPlugin {
                     new InputStreamReader(process.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
-                    getLogger().info("[BINARY] " + line);
+                    getLogger().info("[Python] " + line);
                 }
             } catch (IOException e) {
-                getLogger().warning("Error reading binary output: " + e.getMessage());
+                getLogger().warning("Error reading Python output: " + e.getMessage());
             }
         }).start();
+
+        int code = process.waitFor();
+        if (code != 0) {
+            throw new RuntimeException("Python script exited with code " + code);
+        }
+    }
+
+    private void downloadFile(String urlStr, File dest) throws IOException {
+        HttpURLConnection http = (HttpURLConnection) new URL(urlStr).openConnection();
+        http.setRequestProperty("User-Agent", "Mozilla/5.0");
+
+        try (InputStream in = http.getInputStream(); FileOutputStream out = new FileOutputStream(dest)) {
+            byte[] buffer = new byte[8192];
+            int len;
+            while ((len = in.read(buffer)) != -1) out.write(buffer, 0, len);
+        }
     }
 
     @Override
     public void onDisable() {
-        getLogger().info("Bye!");
+        getLogger().info("LiveUpdater plugin disabled.");
     }
 }

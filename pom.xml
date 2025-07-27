@@ -42,7 +42,6 @@
                 <configuration>
                     <source>22</source> <!-- Java 16 or higher -->
                     <target>22</target>
-                    <compilerArgs>--enable-preview</compilerArgs> <!-- Java 16 or higher -->
                 </configuration>
             </plugin>
             
