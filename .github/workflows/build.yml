@@ -29,19 +29,33 @@ jobs:
           cp target/LiveUpdater-*.jar out/LiveUpdater.jar
           cp server.py out/server.py
 
-      - name: 🏷️ Get version from JAR name
+      - name: 🧾 Read version from plugin.yml
         id: get_version
         run: |
-          FILE=$(ls target/LiveUpdater-*.jar | head -n 1)
-          VERSION=$(echo $FILE | sed -E 's/.*LiveUpdater-([0-9]+\.[0-9]+\.[0-9]+)\.jar/\1/')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "::set-output name=version::$VERSION"
+          VERSION=$(grep '^version:' src/main/resources/plugin.yml | awk '{print $2}')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: 🚀 Create GitHub release
+      - name: 📦 Generate tag info
+        id: release_tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ steps.get_version.outputs.version }}
+          COUNT=$(gh release list --limit 100 | grep "^v$VERSION" | wc -l)
+          if [ "$COUNT" -eq 0 ]; then
+            echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+            echo "name=v$VERSION" >> $GITHUB_OUTPUT
+          else
+            PATCH_NUM=$COUNT
+            echo "tag=v$VERSION-patch-$PATCH_NUM" >> $GITHUB_OUTPUT
+            echo "name=v$VERSION Patch $PATCH_NUM" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🚀 Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          name: "LiveUpdater v${{ steps.get_version.outputs.version }}"
-          tag_name: "v${{ steps.get_version.outputs.version }}"
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          name: ${{ steps.release_tag.outputs.name }}
           files: |
             out/LiveUpdater.jar
             out/server.py
