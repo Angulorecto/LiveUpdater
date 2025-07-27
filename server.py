@@ -12,6 +12,7 @@ from mcrcon import MCRcon
 import argparse
 import socket
 import requests
+import re
 
 # ==== New imports for cert generation ====
 from cryptography import x509
@@ -201,17 +202,28 @@ def enable_rcon(path="server.properties"):
         write_server_properties(props, path)
 
 def get_local_ip():
+    system = platform.system()
+
     try:
-        return socket.gethostbyname(socket.gethostname())
-    except Exception:
-        return "127.0.0.1"
-        
-def get_public_ip():
-    try:
-        ip = requests.get("https://api.ipify.org").text
-        return ip
-    except requests.RequestException:
-        return "Could not determine public IP"
+        if system == "Windows":
+            output = subprocess.check_output("ipconfig", encoding="utf-8")
+            # Match IPv4 from Wi-Fi or Ethernet adapter
+            match = re.search(r"IPv4 Address[.\s]*: ([\d.]+)", output)
+            if match:
+                return match.group(1)
+
+        elif system in ("Linux", "Darwin"):  # Darwin = macOS
+            output = subprocess.check_output("ip addr" if system == "Linux" else "ifconfig", shell=True, encoding="utf-8")
+
+            # Match 192.x.x.x or 10.x.x.x or 172.16-31.x.x
+            match = re.search(r"inet (192\.168|10\.|172\.(1[6-9]|2\d|3[01]))\.[\d.]+", output)
+            if match:
+                return match.group(0).split()[1 if system == "Linux" else 0]
+
+    except Exception as e:
+        return f"Error: {e}"
+
+    return "127.0.0.1"  # Fallback
 
 def update_rcon_settings(path, password, port=25575, host="127.0.0.1"):
     props = read_server_properties(path)
@@ -303,9 +315,7 @@ def start_tls_ftp_server():
     if args.exposed:
         handler.masquerade_address = get_public_ip()
     else:
-        ip = get_local_ip()
-        print(ip)
-        handler.masquerade_address = ip
+        handler.masquerade_address = get_local_ip()
 
     server = FTPServer(("0.0.0.0", 2121), handler)
     print("✅ TLS FTP server running on port 2121")
