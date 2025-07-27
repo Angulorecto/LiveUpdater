@@ -29,8 +29,21 @@ jobs:
           cp target/LiveUpdater-*.jar out/LiveUpdater.jar
           cp server.py out/server.py
 
-      - name: 📤 Upload plugin JAR and server.py
-        uses: actions/upload-artifact@v4
+      - name: 🏷️ Get version from JAR name
+        id: get_version
+        run: |
+          FILE=$(ls target/LiveUpdater-*.jar | head -n 1)
+          VERSION=$(echo $FILE | sed -E 's/.*LiveUpdater-([0-9]+\.[0-9]+\.[0-9]+)\.jar/\1/')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "::set-output name=version::$VERSION"
+
+      - name: 🚀 Create GitHub release
+        uses: softprops/action-gh-release@v1
         with:
-          name: LiveUpdater
-          path: out
+          name: "LiveUpdater v${{ steps.get_version.outputs.version }}"
+          tag_name: "v${{ steps.get_version.outputs.version }}"
+          files: |
+            out/LiveUpdater.jar
+            out/server.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
